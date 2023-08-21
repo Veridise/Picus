@@ -8,6 +8,7 @@
     (prefix-in r1cs: "./picus/r1cs/r1cs-grammar.rkt")
     (prefix-in dpvl: "./picus/algorithms/dpvl.rkt")
     (prefix-in pre: "./picus/precondition.rkt")
+    "ansi.rkt"
 )
 
 ; =====================================
@@ -23,7 +24,7 @@
 (define arg-slv #t)
 (define arg-smt #f)
 (define arg-weak #f)
-(define arg-map #t)
+(define arg-verbose 0)
 (command-line
     #:once-each
     [("--r1cs") p-r1cs "path to target r1cs"
@@ -61,8 +62,15 @@
     [("--weak") "only check weak safety, not strong safety  (default: false)"
         (set! arg-weak #t)
     ]
-    [("--raw-output") "show the raw r1cs signals (default: false / map r1cs signals to circom variables)"
-        (set! arg-map #f)
+    [("--verbose") verbose
+     ["counterexample verbose level (default: 0)"
+      "  0: not verbose; only output with circom variable format"
+      "  1: output with circom variable format when applicable, and r1cs signal format otherwise"
+      "  2: output with r1cs signal format"]
+        (set! arg-verbose
+              (match verbose
+                [(or "0" "1" "2") (string->number verbose)]
+                [_ (tokamak:exit "unrecognized verbose level: ~a" verbose)]))
     ]
 )
 (printf "# r1cs file: ~a\n" arg-r1cs)
@@ -74,7 +82,7 @@
 (printf "# solver on: ~a\n" arg-slv)
 (printf "# smt: ~a\n" arg-smt)
 (printf "# weak: ~a\n" arg-weak)
-(printf "# map: ~a\n" arg-map)
+(printf "# verbose: ~a\n" arg-verbose)
 
 ; =================================================
 ; ======== resolve solver specific methods ========
@@ -160,7 +168,7 @@
     xlist opts defs cnsts
     alt-xlist alt-defs alt-cnsts
     unique-set precondition ; prior knowledge row
-    arg-selector arg-prop arg-slv arg-timeout arg-smt arg-map path-sym
+    arg-selector arg-prop arg-slv arg-timeout arg-smt arg-verbose path-sym
     solve state-smt-path interpret-r1cs
     parse-r1cs optimize-r1cs-p0 expand-r1cs normalize-r1cs optimize-r1cs-p1
 ))
@@ -169,5 +177,31 @@
     (printf "# weak uniqueness: ~a.\n" res)
     (printf "# strong uniqueness: ~a.\n" res)
 )
+
+;; format-cex :: string?, (listof (pairof string? any/c)), #:diff (listof (pairof string? any/c)) -> void?
+(define (format-cex heading info #:diff [diff info])
+  (printf "  # ~a:\n" heading)
+  (for ([entry (in-list info)] [diff-entry (in-list diff)])
+    (printf (cond
+              [(equal? (cdr entry) (cdr diff-entry))
+               "    # ~a: ~a\n"]
+              [else (highlight "    # ~a: ~a\n")])
+            (car entry) (cdr entry)))
+  (when (empty? info)
+    (printf "    # no ~a\n" heading)))
+
+;; order :: hash? -> (listof (pairof string? any/c))
+(define (order info)
+  (sort (hash->list info) string<? #:key car))
+
 (when (equal? 'unsafe res)
-    (printf "# counter-example:\n  ~a.\n" res-info))
+  (printf "# ~a is underconstrained. Below is a counterexample:\n" arg-r1cs)
+  (match-define (list input-info output1-info output2-info other-info) res-info)
+  (define output1-ordered (order output1-info))
+  (define output2-ordered (order output2-info))
+
+  (format-cex "inputs" (order input-info))
+  (format-cex "first possible outputs" output1-ordered #:diff output2-ordered)
+  (format-cex "second possible outputs" output2-ordered #:diff output1-ordered)
+  (when (> arg-verbose 0)
+    (format-cex "other bindings" (order other-info))))
