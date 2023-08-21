@@ -111,7 +111,7 @@ A successful run will output logging info ***similar*** to the following (note t
 # final unknown set #<set: 1 2 3>.
 # weak uniqueness: unsafe.
 # counter-example:
-  #hash((one . 1) (p . 0) (ps1 . 21888242871839275222246405745257275088548364400416034343698204186575808495616) (ps2 . 21888242871839275222246405745257275088548364400416034343698204186575808495615) (ps3 . 21888242871839275222246405745257275088548364400416034343698204186575808495614) (ps4 . 21888242871839275222246405745257275088548364400416034343698204186575808495613) (ps5 . 21888242871839275222246405745257275088548364400416034343698204186575808495612) (x0 . 0) (x1 . 1) (x2 . 0) (x3 . 1) (x4 . 0) (y1 . 0) (y2 . 0) (y3 . 0) (zero . 0)).
+  #hash((m1.main.inp . 0) (m1.main.out[0] . 0) (m1.main.out[1] . 0) (m1.main.success . 0) (m2.main.out[0] . 1) (m2.main.out[1] . 0) (m2.main.success . 1)).
 ```
 
 If you see this, it means the environment that you are operating on is configured successfully.

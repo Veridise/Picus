@@ -23,7 +23,7 @@
 (define arg-slv #t)
 (define arg-smt #f)
 (define arg-weak #f)
-(define arg-map #f)
+(define arg-map #t)
 (command-line
     #:once-each
     [("--r1cs") p-r1cs "path to target r1cs"
@@ -61,8 +61,8 @@
     [("--weak") "only check weak safety, not strong safety  (default: false)"
         (set! arg-weak #t)
     ]
-    [("--map") "map the r1cs signals of model to its circom variable (default: true)"
-        (set! arg-map #t)
+    [("--raw-output") "show the raw r1cs signals (default: false / map r1cs signals to circom variables)"
+        (set! arg-map #f)
     ]
 )
 (printf "# r1cs file: ~a\n" arg-r1cs)
