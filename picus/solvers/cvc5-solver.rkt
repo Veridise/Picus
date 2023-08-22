@@ -73,6 +73,8 @@
   (make-readtable #f #\f 'dispatch-macro
                   (λ (_ port src line col pos)
                     (match (symbol->string (read port))
+                      ;; we have already consumed "#f" from the dispatch macro
+                      ;; so here, we consume the rest of the token: <value> m <mod-value>
                       [(pregexp #px"^(\\d+)m\\d+$" (list _ (app string->number val)))
                        val]))))
 
@@ -106,7 +108,8 @@
   (define model (make-hash))
   (for ([binding (in-list raw-model)])
     (match binding
-      [`(define-fun ,var () #;type ,_ ,val)
+      ;; check that val is a number so that non-number will get reported below.
+      [`(define-fun ,var () #;type ,_ ,(? number? val))
        ; update model
        (hash-set! model (symbol->string var)
                   (if (< val 0)
