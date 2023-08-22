@@ -65,6 +65,17 @@
     )
 )
 
+(define readtable-for-parsing
+  ;; Since 368f3c3, cvc5 can produce a finite field literal, in the format:
+  ;;   #f <value> m <mod-value>
+  ;; See https://github.com/cvc5/cvc5/commit/368f3c3ed695e925f0eea1b9d6a8280cdfa9f64c
+  ;; Here, we simply want to extract the value.
+  (make-readtable #f #\f 'dispatch-macro
+                  (λ (_ port src line col pos)
+                    (match (symbol->string (read port))
+                      [(pregexp #px"^(\\d+)m\\d+$" (list _ (app string->number val)))
+                       val]))))
+
 ; example string:
 ; sat
 ; (
@@ -85,20 +96,22 @@
 ; (define-fun y2 () (_ FiniteField 21888242871839275222246405745257275088548364400416034343698204186575808495617) -1)
 ; )
 (define (parse-model arg-str)
-    (define strlist (string-split arg-str "\n"))
-    (define model (make-hash))
-    (for ([s strlist])
-        (define res (regexp-match* #rx"define-fun (.*?) .* (.*?)\\)" s #:match-select cdr))
-        (when (not (empty? res))
-            (define var (list-ref (list-ref res 0) 0))
-            (define val (string->number (list-ref (list-ref res 0) 1)))
-            (when (< val 0) (set! val (+ config:p val))) ; remap to field
-            ; not a number
-            (when (boolean? val) (tokamak:exit "model parsing error, check: ~a" s))
-            ; update model
-            (hash-set! model var val)
-        )
-    )
-    ; return the model
-    model
-)
+  (define port (open-input-string arg-str))
+  ;; this consumes the sat token
+  (read port)
+  ;; this consumes ( (define-fun) ... )
+  (define raw-model
+    (parameterize ([current-readtable readtable-for-parsing])
+      (read port)))
+  (define model (make-hash))
+  (for ([binding (in-list raw-model)])
+    (match binding
+      [`(define-fun ,var () #;type ,_ ,val)
+       ; update model
+       (hash-set! model (symbol->string var)
+                  (if (< val 0)
+                      (+ config:p val) ; remap to field
+                      val))]
+      [_ (tokamak:exit "model parsing error, check: ~a" binding)]))
+  ; return the model
+  model)
