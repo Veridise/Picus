@@ -82,10 +82,11 @@ A successful run will output logging info ***similar*** to the following (note t
 # solver: cvc5
 # selector: counter
 # precondition: ()
-# propagation: #t
+# propagation on: #t
+# solver on: #t
 # smt: #f
 # weak: #t
-# map: #f
+# verbose: 0
 # number of wires: 5
 # number of constraints: 4
 # field size (how many bytes): 32
@@ -110,8 +111,17 @@ A successful run will output logging info ***similar*** to the following (note t
   # checking: (x1 y1), sat.
 # final unknown set #<set: 1 2 3>.
 # weak uniqueness: unsafe.
-# counter-example:
-  #hash((m1.main.inp . 0) (m1.main.out[0] . 0) (m1.main.out[1] . 0) (m1.main.success . 0) (m2.main.out[0] . 1) (m2.main.out[1] . 0) (m2.main.success . 1)).
+# ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.r1cs is underconstrained. Below is a counterexample:
+  # inputs:
+    # m1.main.inp: 0
+  # first possible outputs:
+    # m1.main.out[0]: 0
+    # m1.main.out[1]: 0
+    # m1.main.success: 0
+  # second possible outputs:
+    # m2.main.out[0]: 1
+    # m2.main.out[1]: 0
+    # m2.main.success: 1
 ```
 
 If you see this, it means the environment that you are operating on is configured successfully.

@@ -64,7 +64,6 @@
 (define :arg-slv null)
 (define :arg-timeout null)
 (define :arg-smt null)
-(define :arg-map null)
 
 (define :unique-set null)
 (define :precondition null)
@@ -303,39 +302,67 @@
 )
 
 ; this creates a new hash with r1cs variables replaced by corresponding circom variables
-; (note) this will remove helping variables like "one", "ps?", etc.
-(define (map-to-vars info path-sym)
-    (define rd (csv->list (open-input-file path-sym)))
-    ; create r1cs-id to circom-var mapping
-    (define r2c-map (make-hash (for/list ([p rd])
-        (cons (list-ref p 0) (list-ref p 3))
-    )))
-    (define pinfo (if (list? info) (make-hash) info)) ; patch for info type, fix later
+; (note) when unmappable? is #f, this will remove helping variables like "one", "ps?", etc.
+;; map-to-vars :: (listof hash?), path-string?, #:unmappable? boolean? -> (listof hash?)
+(define (map-to-vars info path-sym #:unmappable? [unmappable? #f])
+  (define rd (csv->list (open-input-file path-sym)))
+  ; create r1cs-id to circom-var mapping
+  (define r2c-map
+    (make-hash (for/list ([p rd]) (cons (list-ref p 0) (list-ref p 3)))))
+  (define (process-subinfo pinfo)
     (define new-info (make-hash))
-    (for ([k (hash-keys pinfo)])
-        (cond
-            [(equal? k "x0") (void)] ; skip since this is a constant
-            [(string-prefix? k "x")
-                (define rid (substring k 1))
-                (define cid (hash-ref r2c-map rid))
-                (define val (hash-ref pinfo k))
+    (for ([(k val) (in-hash pinfo)])
+      (cond
+        [(string-prefix? k "x")
+         (define rid (substring k 1))
+         (define cid (hash-ref r2c-map rid))
 
-                (define sid (format "m1.~a" cid))
-                (hash-set! new-info sid val)
-            ]
-            [(string-prefix? k "y")
-                (define rid (substring k 1))
-                (define cid (hash-ref r2c-map rid))
-                (define val (hash-ref pinfo k))
+         (define sid (format "m1.~a" cid))
+         (hash-set! new-info sid val)]
+        [(string-prefix? k "y")
+         (define rid (substring k 1))
+         (define cid (hash-ref r2c-map rid))
 
-                (define sid (format "m2.~a" cid))
-                (hash-set! new-info sid val)
-            ]
-            [else (void)] ; skip otherwise
-        )
-    )
-    new-info
-)
+         (define sid (format "m2.~a" cid))
+         (hash-set! new-info sid val)]
+        [else
+         (when unmappable?
+           (hash-set! new-info k val))]))
+    new-info)
+  (map process-subinfo info))
+
+;; partition-vars :: (or/c '() hash?), set?, set? -> (list/c hash? hash? hash? hash?)
+(define (partition-vars info input-set output-set)
+  (define pinfo (if (list? info) (make-hash) info)) ; patch for info type, fix later
+  (for/fold ([input-info (hash)]
+             [output1-info (hash)]
+             [output2-info (hash)]
+             [other-info (hash)]
+             #:result (list input-info output1-info output2-info other-info))
+            ([(k v) (in-hash pinfo)])
+    (match k
+      ;; matching for a variable in the input set. By construction,
+      ;; this variable is in the form x<number-id>.
+      [(pregexp #px"^x(\\d+)$" (list _ (app string->number n)))
+       #:when (set-member? input-set n)
+       (values (hash-set input-info k v)
+               output1-info
+               output2-info
+               other-info)]
+      ;; matching for a variable in the output set. By construction,
+      ;; this variable is in the form x<number-id> or y<number-id>,
+      ;; where x indicates that it is in the first set
+      ;; and y indicates that it is in the second set.
+      [(pregexp #px"^(?:x|y)(\\d+)$" (list _ (app string->number n)))
+       #:when (set-member? output-set n)
+       (values input-info
+               (if (string-prefix? k "x") (hash-set output1-info k v) output1-info)
+               (if (string-prefix? k "y") (hash-set output2-info k v) output2-info)
+               other-info)]
+      [_ (values input-info
+                 output1-info
+                 output2-info
+                 (hash-set other-info k v))])))
 
 ; verifies signals in target-set
 ; returns (same as dpvl-iterate):
@@ -348,7 +375,7 @@
     xlist opts defs cnsts
     alt-xlist alt-defs alt-cnsts
     unique-set precondition
-    arg-selector arg-prop arg-slv arg-timeout arg-smt arg-map path-sym
+    arg-selector arg-prop arg-slv arg-timeout arg-smt arg-verbose path-sym
     solve state-smt-path interpret-r1cs
     parse-r1cs optimize-r1cs-p0 expand-r1cs normalize-r1cs optimize-r1cs-p1
     ; extra constraints, usually from cex module about partial model
@@ -380,7 +407,6 @@
     (set! :arg-slv arg-slv)
     (set! :arg-timeout arg-timeout)
     (set! :arg-smt arg-smt)
-    (set! :arg-map arg-map)
 
     (set! :unique-set unique-set)
     (set! :precondition precondition)
@@ -501,9 +527,19 @@
     ; invoke the algorithm iteration
     (define-values (ret0 rks rus info) (dpvl-iterate known-set unknown-set))
 
+    ; always skip x0, since it is hard-coded to 1 in the algorithm, but
+    ; the actual value here might be different, which could be misleading.
+    (when (hash? info)
+      (hash-remove! info "x0"))
+
+    (define partitioned-info (partition-vars info input-set output-set))
+
     ; do a remapping if enabled
-    (set! info (if arg-map (map-to-vars info path-sym) info))
+    (define mapped-info
+      (match arg-verbose
+        [0 (map-to-vars partitioned-info path-sym)]
+        [1 (map-to-vars partitioned-info path-sym #:unmappable? #t)]
+        [2 partitioned-info]))
 
     ; return
-    (values ret0 rks rus info)
-)
+    (values ret0 rks rus mapped-info))
