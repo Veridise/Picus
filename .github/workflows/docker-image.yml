@@ -8,11 +8,58 @@ on:
   workflow_dispatch:
 
 jobs:
+  test-solve-with-z3:
+    runs-on: ubuntu-latest
+    container: 
+      image: veridise/picus:git-latest
+    env:
+      PLTADDONDIR: /root/.local/share/racket/
+    steps:
+      - uses: actions/checkout@v1
+      - name: linking circom
+        run: ln -s /root/.cargo/bin/circom /usr/bin/circom
+      - name: compile circomlib
+        run: bash ./scripts/prepare-circomlib.sh
+      - name: run picus with z3, using v3
+        run: |
+          racket ./picus-dpvl-uniqueness.rkt \
+              --solver z3 \
+              --r1cs ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.r1cs \
+              --weak | \
+            tee result.out
+        shell: bash # this ensures that pipefail is set
+      - name: test expected result
+        run: |
+          grep "^# weak uniqueness: unsafe\.$" ./result.out
+
+  test-solve-with-cvc5:
+    runs-on: ubuntu-latest
+    container: 
+      image: veridise/picus:git-latest
+    env:
+      PLTADDONDIR: /root/.local/share/racket/
+    steps:
+      - uses: actions/checkout@v1
+      - name: linking circom
+        run: ln -s /root/.cargo/bin/circom /usr/bin/circom
+      - name: compile circomlib
+        run: bash ./scripts/prepare-circomlib.sh
+      - name: run picus with cvc5, using v3
+        run: |
+          racket ./picus-dpvl-uniqueness.rkt \
+              --solver cvc5 \
+              --r1cs ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.r1cs \
+              --weak | \
+            tee result.out
+        shell: bash # this ensures that pipefail is set
+      - name: test expected result
+        run: |
+          grep "^# weak uniqueness: unsafe\.$" ./result.out
 
   publish-docker:
+    needs: [test-solve-with-z3, test-solve-with-cvc5]
     name: "Publish Docker image to DockerHub"
-    if: "github.event_name == 'push'"
-    concurrency: docker_publish
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - name: Set up Docker Buildx
@@ -27,61 +74,4 @@ jobs:
         with:
           push: true
           file: Dockerfile
-          tags: veridise/picus:git-latest , veridise/picus:git-${{ github.sha }}
-
-  test-compile-circomlib:
-    needs: publish-docker
-    runs-on: ubuntu-latest
-    container: 
-      image: veridise/picus:git-${{ github.sha }}
-      credentials:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v1
-      - name: linking circom
-        run: ln -s /root/.cargo/bin/circom /usr/bin/circom
-      - name: compile circomlib
-        run: bash ./scripts/prepare-circomlib.sh
-
-  test-solve-with-z3:
-    needs: test-compile-circomlib
-    runs-on: ubuntu-latest
-    container: 
-      image: veridise/picus:git-${{ github.sha }}
-      credentials:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v1
-      - name: linking circom
-        run: ln -s /root/.cargo/bin/circom /usr/bin/circom
-      - name: compile circomlib
-        run: bash ./scripts/prepare-circomlib.sh
-      - name: preparing rosette
-        run: raco pkg install --auto rosette
-      - name: preparing csv-reading
-        run: raco pkg install --auto csv-reading
-      - name: run picus with z3, using v3
-        run: racket ./picus-dpvl-uniqueness.rkt --solver z3 --r1cs ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.r1cs --weak
-
-  test-solve-with-cvc5:
-    needs: test-compile-circomlib
-    runs-on: ubuntu-latest
-    container: 
-      image: veridise/picus:git-${{ github.sha }}
-      credentials:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v1
-      - name: linking circom
-        run: ln -s /root/.cargo/bin/circom /usr/bin/circom
-      - name: compile circomlib
-        run: bash ./scripts/prepare-circomlib.sh
-      - name: preparing rosette
-        run: raco pkg install --auto rosette
-      - name: preparing csv-reading
-        run: raco pkg install --auto csv-reading
-      - name: run picus with cvc5, using v3
-        run: racket ./picus-dpvl-uniqueness.rkt --solver cvc5 --r1cs ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.r1cs --weak
+          tags: veridise/picus:git-latest, veridise/picus:git-${{ github.sha }}
