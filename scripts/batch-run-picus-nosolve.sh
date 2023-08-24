@@ -18,7 +18,7 @@ do
 	echo "====   start: $(date -u)"
 	st="$(date -u +%s)"
 
-    timeout ${otime} racket ./picus-dpvl-uniqueness.rkt --timeout 5000 --solver ${solver} --weak --nosolve --r1cs ${fp} > ${logpath}/${bn}.log 2>&1
+    timeout ${otime} racket ./picus.rkt --timeout 5000 --solver ${solver} --weak --nosolve --r1cs ${fp} > ${logpath}/${bn}.log 2>&1
 
 	et="$(date -u +%s)"
 	echo "====     end: $(date -u)"
