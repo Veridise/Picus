@@ -22,7 +22,7 @@ jobs:
         run: bash ./scripts/prepare-circomlib.sh
       - name: run picus with z3, using v3
         run: |
-          racket ./picus-dpvl-uniqueness.rkt \
+          racket ./picus.rkt \
               --solver z3 \
               --r1cs ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.r1cs \
               --weak | \
@@ -46,7 +46,7 @@ jobs:
         run: bash ./scripts/prepare-circomlib.sh
       - name: run picus with cvc5, using v3
         run: |
-          racket ./picus-dpvl-uniqueness.rkt \
+          racket ./picus.rkt \
               --solver cvc5 \
               --r1cs ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.r1cs \
               --weak | \

@@ -71,7 +71,7 @@ This compiles all the "circomlib-utils" benchmarks, and won't throw any error if
 Then test some benchmarks, e.g., the `Decoder` benchmark, run:
 
 ```bash
-racket ./picus-dpvl-uniqueness.rkt --solver cvc5 --timeout 5000 --weak --r1cs ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.r1cs
+racket ./picus.rkt --solver cvc5 --timeout 5000 --weak --r1cs ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.r1cs
 ```
 
 A successful run will output logging info ***similar*** to the following (note that actual counter-example could be different due to potential stochastic search strategy in dependant libraries):
@@ -149,7 +149,7 @@ This will automatically invoke the tool and output the result.
 The following lists out all available options for running the tool.
 
 ```bash
-usage: picus-dpvl-uniqueness.rkt [ <option> ... ]
+usage: picus.rkt [ <option> ... ]
 
 <option> is one of
 
