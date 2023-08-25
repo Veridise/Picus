@@ -374,14 +374,18 @@
 (define (get-nlabels arg-r1cs) (header-section-nlabels (r1cs-header arg-r1cs)))
 (define (get-constraints arg-r1cs) (constraint-section-constraints (r1cs-constraint arg-r1cs)))
 (define (get-field-size arg-r1cs) (header-section-field-size (r1cs-header arg-r1cs)))
+(define (get-prime-number arg-r1cs) (header-section-prime-number (r1cs-header arg-r1cs)))
 
 (define (extract-header-section arg-raw)
     (define field-size (utils:bytes->number (subbytes arg-raw 0 4))) ; field size in bytes
     (when (not (zero? (remainder field-size 8)))
         (tokamak:exit "# [exception][extract-header-section] field size should be a multiple of 8, got: ~a.") field-size)
-    ; (fixme) is the prime number in little endian?
-    ; (fixme) it's still in bytes type
-    (define prime-number (subbytes arg-raw 4 (+ 4 field-size))) ; prime number
+    (define raw-prime (subbytes arg-raw 4 (+ 4 field-size))) ; prime number
+    ;; reverse since it's big-endian
+    (define bs (reverse (bytes->list raw-prime)))
+    (define prime-number
+      (for/fold ([val-so-far 0]) ([b (in-list bs)])
+        (+ (* val-so-far 256) b)))
     (define nwires (utils:bytes->number (subbytes arg-raw (+ 4 field-size) (+ 8 field-size))))
     (define npubout (utils:bytes->number (subbytes arg-raw (+ 8 field-size) (+ 12 field-size))))
     (define npubin (utils:bytes->number (subbytes arg-raw (+ 12 field-size) (+ 16 field-size))))

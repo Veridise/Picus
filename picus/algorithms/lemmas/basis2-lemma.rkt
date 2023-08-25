@@ -30,11 +30,8 @@
     (values tmp-ks tmp-us)
 )
 
-(define basis2-seqs (for/set ([i (range 253)])
-    (for/set ([j (range (+ 1 i))])
-        (expt 2 j)
-    )
-))
+;; to be initialized later in the function update
+(define basis2-seqs #f)
 
 (define (extract-signal-id x) (string->number (substring x 1)))
 (define (ffsub v) (- config:p v))
@@ -139,6 +136,11 @@
 )
 
 (define (update ks us x0 vs xs range-vec)
+    (unless basis2-seqs
+      (set! basis2-seqs
+            (for/set ([i (range (floor (log config:p 2)))])
+              (for/set ([j (range (+ 1 i))])
+                (expt 2 j)))))
     (define tmp-ks (list->set (set->list ks)))
     (define tmp-us (list->set (set->list us)))
     ; extract coefficients

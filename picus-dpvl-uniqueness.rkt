@@ -105,6 +105,8 @@
 (printf "# number of wires: ~a\n" nwires)
 (printf "# number of constraints: ~a\n" mconstraints)
 (printf "# field size (how many bytes): ~a\n" (r1cs:get-field-size r0))
+(printf "# prime number: ~a\n" (r1cs:get-prime-number r0))
+(config:set-p! (r1cs:get-prime-number r0))
 
 ; categorize signals
 (define input-list (r1cs:r1cs-inputs r0))
