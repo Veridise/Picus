@@ -45,6 +45,9 @@
         [(not eres)
             ; need to kill the process
             (subprocess-kill sp #t)
+            (close-input-port out)
+            (close-output-port in)
+            (close-input-port err)
             (cons 'timeout "")
         ]
         [else
