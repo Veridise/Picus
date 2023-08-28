@@ -396,7 +396,7 @@
     (header-section field-size prime-number nwires npubout npubin nprvin nlabels mconstraints)
 )
 
-(define (extract-single-constraint arg-raw arg-fs)
+(define (extract-single-constraint arg-raw arg-fs internal-pos)
     (define (extract-constraint-block arg-block arg-n)
         (define tmp-wids
             (for/list ([i arg-n])
@@ -414,25 +414,28 @@
         (values tmp-wids tmp-factors)
     )
 
+  (define (subbytes-relative start end)
+    (subbytes arg-raw (+ internal-pos start) (+ internal-pos end)))
+
     ; block A
-    (define nnz-a (utils:bytes->number (subbytes arg-raw 0 4))) ; number of non-zero factors
+    (define nnz-a (utils:bytes->number (subbytes-relative 0 4))) ; number of non-zero factors
     (define block-a-start 4)
     (define block-a-end (+ block-a-start (* nnz-a (+ 4 arg-fs))))
-    (define block-a (subbytes arg-raw block-a-start block-a-end)) ; fetch a whole block
+    (define block-a (subbytes-relative block-a-start block-a-end)) ; fetch a whole block
     (define-values (wids-a factors-a) (extract-constraint-block block-a nnz-a))
 
     ; block B
-    (define nnz-b (utils:bytes->number (subbytes arg-raw block-a-end (+ 4 block-a-end))))
+    (define nnz-b (utils:bytes->number (subbytes-relative block-a-end (+ 4 block-a-end))))
     (define block-b-start (+ 4 block-a-end))
     (define block-b-end (+ block-b-start (* nnz-b (+ 4 arg-fs))))
-    (define block-b (subbytes arg-raw block-b-start block-b-end))
+    (define block-b (subbytes-relative block-b-start block-b-end))
     (define-values (wids-b factors-b) (extract-constraint-block block-b nnz-b))
 
     ; block C
-    (define nnz-c (utils:bytes->number (subbytes arg-raw block-b-end (+ 4 block-b-end))))
+    (define nnz-c (utils:bytes->number (subbytes-relative block-b-end (+ 4 block-b-end))))
     (define block-c-start (+ 4 block-b-end))
     (define block-c-end (+ block-c-start (* nnz-c (+ 4 arg-fs))))
-    (define block-c (subbytes arg-raw block-c-start block-c-end))
+    (define block-c (subbytes-relative block-c-start block-c-end))
     (define-values (wids-c factors-c) (extract-constraint-block block-c nnz-c))
 
     (define ret0
@@ -447,26 +450,19 @@
 )
 
 (define (extract-constraint-section arg-raw arg-fs arg-m)
-    (define (do-extract raw0)
-        (cond 
-            [(zero? (bytes-length raw0))
-                (list ) ; base
-            ]
-            [else
-                ; recursive
-                (define-values (block-end cs) (extract-single-constraint raw0 arg-fs))
-                ; return
-                (cons cs (do-extract (subbytes raw0 block-end)))
-            ]
-        )
-    )
-    (define clist (do-extract arg-raw))
-    (when (not (equal? arg-m (length clist)))
-        (tokamak:exit 
-            (format "# [exception][extract-constraint-section] number of constraints is not equal to mconstraints, got: ~a and ~a." (length clist) arg-m)))
-    ; return
-    (constraint-section clist)
-)
+  (define blen (bytes-length arg-raw))
+  (define (do-extract internal-pos)
+    (cond
+      [(>= internal-pos blen) (list)]
+      [else
+       (define-values (block-end cs)
+         (extract-single-constraint arg-raw arg-fs internal-pos))
+       (cons cs (do-extract (+ internal-pos block-end)))]))
+  (define clist (do-extract 0))
+  (when (not (equal? arg-m (length clist)))
+    (tokamak:exit
+     (format "# [exception][extract-constraint-section] number of constraints is not equal to mconstraints, got: ~a and ~a." (length clist) arg-m)))
+  (constraint-section clist))
 
 (define (extract-w2l-section arg-raw)
     ; every label id takes 8 bytes
