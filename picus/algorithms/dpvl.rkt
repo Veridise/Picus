@@ -15,6 +15,7 @@
     (prefix-in l3: "./lemmas/aboz-lemma.rkt")
     (prefix-in l4: "./lemmas/bim-lemma.rkt")
     ; (prefix-in ln0: "./lemmas/baby-lemma.rkt")
+    "../../verbose.rkt"
 )
 (provide (rename-out
     [apply-algorithm apply-algorithm]
@@ -72,7 +73,6 @@
 (define :state-smt-path null)
 (define :interpret-r1cs null)
 
-(define :parse-r1cs null)
 (define :optimize-r1cs-p0 null)
 (define :expand-r1cs null)
 (define :normalize-r1cs null)
@@ -375,9 +375,9 @@
     xlist opts defs cnsts
     alt-xlist alt-defs alt-cnsts
     unique-set precondition
-    arg-selector arg-prop arg-slv arg-timeout arg-smt arg-verbose path-sym
+    arg-selector arg-prop arg-slv arg-timeout arg-smt arg-cex-verbose path-sym
     solve state-smt-path interpret-r1cs
-    parse-r1cs optimize-r1cs-p0 expand-r1cs normalize-r1cs optimize-r1cs-p1
+    optimize-r1cs-p0 expand-r1cs normalize-r1cs optimize-r1cs-p1
     ; extra constraints, usually from cex module about partial model
     #:extcnsts [extcnsts (r1cs:rcmds (list ))]
     ; if true, then the query block will not be issued
@@ -415,7 +415,6 @@
     (set! :state-smt-path state-smt-path)
     (set! :interpret-r1cs interpret-r1cs)
 
-    (set! :parse-r1cs parse-r1cs)
     (set! :optimize-r1cs-p0 optimize-r1cs-p0)
     (set! :expand-r1cs expand-r1cs)
     (set! :normalize-r1cs normalize-r1cs)
@@ -444,14 +443,14 @@
             )
         )
     )))
-    (printf "# initial known-set ~a\n" known-set)
-    (printf "# initial unknown-set ~a\n" unknown-set)
+    (vprintf "# initial known-set ~e\n" known-set)
+    (vprintf "# initial unknown-set ~e\n" unknown-set)
     
     ; (precondition related) incorporate unique-set if unique-set is not an empty set
     (set! known-set (set-union known-set unique-set))
     (set! unknown-set (set-subtract unknown-set unique-set))
-    (printf "# refined known-set: ~a\n" known-set)
-    (printf "# refined unknown-set: ~a\n" unknown-set)
+    (vprintf "# refined known-set: ~e\n" known-set)
+    (vprintf "# refined unknown-set: ~e\n" unknown-set)
 
     ; ==== branch out: skip optimization phase 0 and apply expand & normalize ====
     ; computing rcdmap need no ab0 lemma from optimization phase 0
@@ -536,7 +535,7 @@
 
     ; do a remapping if enabled
     (define mapped-info
-      (match arg-verbose
+      (match arg-cex-verbose
         [0 (map-to-vars partitioned-info path-sym)]
         [1 (map-to-vars partitioned-info path-sym #:unmappable? #t)]
         [2 partitioned-info]))
