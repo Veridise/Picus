@@ -29,17 +29,19 @@
     ; first create a list of all symbolic variables according to nwires
     (define nwires (r1cs:get-nwires arg-r1cs))
     ; strictly align with wid
-    (define xlist (if (null? arg-xlist)
-        ; create fresh new
-        (for/list ([i nwires]) (format "x~a" i))
-        ; use existing one
-        arg-xlist
-    ))
+    (define xvec
+      (match arg-xlist
+        ['()
+         ; create fresh new
+         (for/vector ([i nwires]) (format "x~a" i))]
+        [_
+         ; use existing one
+         (list->vector arg-xlist)]))
 
     ; add declarations for variables
     (set! raw-decls (append raw-decls
         (list (r1cs:rcmt "======== declaration constraints ========"))
-        (for/list ([x xlist])
+        (for/list ([x xvec])
             (if (and (not (null? arg-xlist)) (string-prefix? x "x"))
                 ; provided list with already defined x, skip
                 (r1cs:rcmt (format "~a: already defined" x))
@@ -52,7 +54,7 @@
     ; add range constraints for declared variables
     (set! raw-decls (append raw-decls
         (list (r1cs:rcmt "======== range constraints ========"))
-        (for/list ([x xlist])
+        (for/list ([x xvec])
             (if (and (not (null? arg-xlist)) (string-prefix? x "x"))
                 ; provided list with already defined x, skip
                 (r1cs:rcmt (format "~a: already defined" x))
@@ -96,19 +98,19 @@
         ; note that terms could be empty, in which case 0 is used
         (define terms-a (cons (r1cs:rint 0) (for/list ([w0 wids-a] [f0 factors-a])
             ; (format "(* ~a ~a)" f0 x0)
-            (let ([x0 (list-ref xlist w0)])
+            (let ([x0 (vector-ref xvec w0)])
                 (r1cs:rmul (list (r1cs:rint f0) (r1cs:rvar x0)))
             )
         )))
         (define terms-b (cons (r1cs:rint 0) (for/list ([w0 wids-b] [f0 factors-b])
             ; (format "(* ~a ~a)" f0 x0)
-            (let ([x0 (list-ref xlist w0)])
+            (let ([x0 (vector-ref xvec w0)])
                 (r1cs:rmul (list (r1cs:rint f0) (r1cs:rvar x0)))
             )
         )))
         (define terms-c (cons (r1cs:rint 0) (for/list ([w0 wids-c] [f0 factors-c])
             ; (format "(* ~a ~a)" f0 x0)
-            (let ([x0 (list-ref xlist w0)])
+            (let ([x0 (vector-ref xvec w0)])
                 (r1cs:rmul (list (r1cs:rint f0) (r1cs:rvar x0)))
             )
         )))
@@ -130,12 +132,12 @@
         (list (r1cs:rcmt "======== main constraints ========"))
         sconstraints
         (list (r1cs:rassert (r1cs:req
-            (r1cs:rint 1) (r1cs:rvar (format "~a" (list-ref xlist 0)))
+            (r1cs:rint 1) (r1cs:rvar (format "~a" (vector-ref xvec 0)))
         )))
     ))
 
     (values
-        xlist
+        (vector->list xvec)
         (r1cs:rcmds raw-opts)
         (r1cs:rcmds raw-decls)
         (r1cs:rcmds raw-cnsts)
