@@ -56,6 +56,17 @@ jobs:
         run: |
           grep "^# weak uniqueness: unsafe\.$" ./result.out
 
+  racket-test:
+    runs-on: ubuntu-latest
+    container:
+      image: veridise/picus:git-latest
+    env:
+      PLTADDONDIR: /root/.local/share/racket/
+    steps:
+      - uses: actions/checkout@v1
+      - name: run tests
+        run: raco test ./tests
+
   publish-docker:
     needs: [test-solve-with-z3, test-solve-with-cvc5]
     name: "Publish Docker image to DockerHub"

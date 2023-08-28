@@ -2,6 +2,7 @@ benchmarks/**/*.json
 benchmarks/**/*.sym
 benchmarks/**/*.r1cs
 benchmarks/**/*.log
+!benchmarks/r1cs/*.r1cs
 logs/**/*.log
 .ipynb_checkpoints/
 
