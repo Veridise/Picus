@@ -9,6 +9,7 @@
     (prefix-in dpvl: "./picus/algorithms/dpvl.rkt")
     (prefix-in pre: "./picus/precondition.rkt")
     "ansi.rkt"
+    "verbose.rkt"
 )
 
 ; =====================================
@@ -24,7 +25,7 @@
 (define arg-slv #t)
 (define arg-smt #f)
 (define arg-weak #f)
-(define arg-verbose 0)
+(define arg-cex-verbose 0)
 (command-line
     #:once-each
     [("--r1cs") p-r1cs "path to target r1cs"
@@ -62,15 +63,24 @@
     [("--weak") "only check weak safety, not strong safety  (default: false)"
         (set! arg-weak #t)
     ]
-    [("--verbose") verbose
+    [("--verbose")
+     verbose
+     ["verbose level (default: 0)"
+      "  0: not verbose; output algorithm computation minimally"
+      "  1: output algorithm computation, but display ... when the output is too large"
+      "  2: output full algorithm computation"]
+     (set-verbose! (match verbose
+                     [(or "0" "1" "2") (string->number verbose)]
+                     [_ (tokamak:exit "unrecognized verbose level: ~a" verbose)]))]
+    [("--cex-verbose") cex-verbose
      ["counterexample verbose level (default: 0)"
       "  0: not verbose; only output with circom variable format"
       "  1: output with circom variable format when applicable, and r1cs signal format otherwise"
       "  2: output with r1cs signal format"]
-        (set! arg-verbose
-              (match verbose
-                [(or "0" "1" "2") (string->number verbose)]
-                [_ (tokamak:exit "unrecognized verbose level: ~a" verbose)]))
+        (set! arg-cex-verbose
+              (match cex-verbose
+                [(or "0" "1" "2") (string->number cex-verbose)]
+                [_ (tokamak:exit "unrecognized verbose level: ~a" cex-verbose)]))
     ]
 )
 (printf "# r1cs file: ~a\n" arg-r1cs)
@@ -82,7 +92,7 @@
 (printf "# solver on: ~a\n" arg-slv)
 (printf "# smt: ~a\n" arg-smt)
 (printf "# weak: ~a\n" arg-weak)
-(printf "# verbose: ~a\n" arg-verbose)
+(printf "# cex-verbose: ~a\n" arg-cex-verbose)
 
 ; =================================================
 ; ======== resolve solver specific methods ========
@@ -120,8 +130,9 @@
 
 ; parse original r1cs
 (printf "# parsing original r1cs...\n")
+;; invariant: (length xlist) = nwires
 (define-values (xlist opts defs cnsts) (parse-r1cs r0 null)) ; interpret the constraint system
-(printf "# xlist: ~a.\n" xlist)
+(vprintf "# xlist: ~e.\n" xlist)
 ; parse alternative r1cs
 (define alt-xlist (for/list ([i (range nwires)])
     (if (not (utils:contains? input-list i))
@@ -129,7 +140,7 @@
         (list-ref xlist i)
     )
 ))
-(printf "# alt-xlist ~a.\n" alt-xlist)
+(vprintf "# alt-xlist ~e.\n" alt-xlist)
 (printf "# parsing alternative r1cs...\n")
 (define-values (_ __ alt-defs alt-cnsts) (parse-r1cs r0 alt-xlist))
 
@@ -170,9 +181,9 @@
     xlist opts defs cnsts
     alt-xlist alt-defs alt-cnsts
     unique-set precondition ; prior knowledge row
-    arg-selector arg-prop arg-slv arg-timeout arg-smt arg-verbose path-sym
+    arg-selector arg-prop arg-slv arg-timeout arg-smt arg-cex-verbose path-sym
     solve state-smt-path interpret-r1cs
-    parse-r1cs optimize-r1cs-p0 expand-r1cs normalize-r1cs optimize-r1cs-p1
+    optimize-r1cs-p0 expand-r1cs normalize-r1cs optimize-r1cs-p1
 ))
 (printf "# final unknown set ~a.\n" res-us)
 (if arg-weak
@@ -205,5 +216,5 @@
   (format-cex "inputs" (order input-info))
   (format-cex "first possible outputs" output1-ordered #:diff output2-ordered)
   (format-cex "second possible outputs" output2-ordered #:diff output1-ordered)
-  (when (> arg-verbose 0)
+  (when (> arg-cex-verbose 0)
     (format-cex "other bindings" (order other-info))))
