@@ -424,25 +424,22 @@
     (set! :extcnsts extcnsts)
     (set! :skip-query? skip-query?)
 
+    (define alt-xvec (list->set :alt-xlist))
+
     ; keep track of index of xlist (not alt-xlist since that's incomplete)
-    (define known-set (list->set (filter
-        (lambda (x) (not (null? x)))
-        (for/list ([i (range :nwires)])
-            (if (utils:contains? :alt-xlist (list-ref :xlist i))
-                i
-                null
-            )
-        )
-    )))
-    (define unknown-set (list->set (filter
-        (lambda (x) (not (null? x)))
-        (for/list ([i (range :nwires)])
-            (if (utils:contains? :alt-xlist (list-ref :xlist i))
-                null
-                i
-            )
-        )
-    )))
+    (define known-set
+      (for/set ([x (in-list :xlist)]
+                [i (in-naturals)]
+                #:when (set-member? alt-xvec x))
+        i))
+
+    (define unknown-set
+      (for/set ([x (in-list :xlist)]
+                [i (in-naturals)]
+                #:unless (set-member? alt-xvec x))
+        i))
+
+
     (vprintf "# initial known-set ~e\n" known-set)
     (vprintf "# initial unknown-set ~e\n" unknown-set)
     
