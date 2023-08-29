@@ -32,6 +32,7 @@ jobs:
         run: |
           grep "^# weak uniqueness: unsafe\.$" ./result.out
 
+  # run the full test for cvc5
   test-solve-with-cvc5:
     runs-on: ubuntu-latest
     container: 
@@ -45,18 +46,9 @@ jobs:
       - name: compile circomlib
         run: bash ./scripts/prepare-circomlib.sh
       - name: run picus with cvc5, using v3
-        run: |
-          racket ./picus.rkt \
-              --solver cvc5 \
-              --r1cs ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.r1cs \
-              --weak | \
-            tee result.out
-        shell: bash # this ensures that pipefail is set
-      - name: test expected result
-        run: |
-          grep "^# weak uniqueness: unsafe\.$" ./result.out
+        run: raco test ./tests/circomlib-test.rkt
 
-  racket-test:
+  performance-test:
     runs-on: ubuntu-latest
     container:
       image: veridise/picus:git-latest
@@ -65,10 +57,10 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - name: run tests
-        run: raco test ./tests
+        run: raco test ./tests/performance-test.rkt
 
   publish-docker:
-    needs: [test-solve-with-z3, test-solve-with-cvc5]
+    needs: [test-solve-with-z3, test-solve-with-cvc5, performance-test]
     name: "Publish Docker image to DockerHub"
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
