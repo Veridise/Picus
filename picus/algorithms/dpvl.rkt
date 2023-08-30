@@ -30,6 +30,7 @@
 (define :target-set null)
 
 (define :varlist null)
+(define :varvec null)
 (define :opts null)
 (define :defs null)
 (define :cnsts null) ; standard form
@@ -40,6 +41,7 @@
 (define :p1cnsts null) ; normalized form optimized by phase 1 optimization
 
 (define :alt-varlist null)
+(define :alt-varvec null)
 (define :alt-defs null)
 (define :alt-cnsts null)
 (define :alt-p0cnsts null)
@@ -87,13 +89,13 @@
 ;   - (values 'sat info): the given query has a counter-example (not verified)
 ;   - (values 'skip info): the given query times out (small step)
 (define (dpvl-solve ks us sid)
-  (printf "  # checking: (~a ~a), " (list-ref :varlist sid) (list-ref :alt-varlist sid))
+  (printf "  # checking: (~a ~a), " (vector-ref :varvec sid) (vector-ref :alt-varvec sid))
   ; assemble commands
   (define known-cmds
     (r1cs:rcmds
      (for/list ([j ks])
-       (r1cs:rassert (r1cs:req (r1cs:rvar (list-ref :varlist j))
-                               (r1cs:rvar (list-ref :alt-varlist j)))))))
+       (r1cs:rassert (r1cs:req (r1cs:rvar (vector-ref :varvec j))
+                               (r1cs:rvar (vector-ref :alt-varvec j)))))))
   (define final-cmds
     (r1cs:rcmds-append
      :partial-cmds
@@ -113,7 +115,7 @@
                       (r1cs:rsolve)))
          ; do not skip query
          (r1cs:rcmds (list
-                      (r1cs:rassert (r1cs:rneq (r1cs:rvar (list-ref :varlist sid)) (r1cs:rvar (list-ref :alt-varlist sid))))
+                      (r1cs:rassert (r1cs:rneq (r1cs:rvar (vector-ref :varvec sid)) (r1cs:rvar (vector-ref :alt-varvec sid))))
                       (r1cs:rsolve))))))
   ; perform optimization
   (define final-str (string-join (:interpret-r1cs
@@ -354,11 +356,13 @@
   (set! :target-set target-set)
 
   (set! :varlist varlist)
+  (set! :varvec (list->vector varlist))
   (set! :opts opts)
   (set! :defs defs)
   (set! :cnsts cnsts)
 
   (set! :alt-varlist alt-varlist)
+  (set! :alt-varvec (list->vector alt-varlist))
   (set! :alt-defs alt-defs)
   (set! :alt-cnsts alt-cnsts)
 
