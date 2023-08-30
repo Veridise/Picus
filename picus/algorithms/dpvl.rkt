@@ -118,9 +118,7 @@
                       (r1cs:rassert (r1cs:rneq (r1cs:rvar (vector-ref :varvec sid)) (r1cs:rvar (vector-ref :alt-varvec sid))))
                       (r1cs:rsolve))))))
   ; perform optimization
-  (define final-str (string-join (:interpret-r1cs
-                                  (r1cs:rcmds-append :opts final-cmds))
-                                 "\n"))
+  (define final-str (:interpret-r1cs (r1cs:rcmds-append :opts final-cmds)))
   (define res (:solve final-str :arg-timeout #:output-smt? #f))
   (define solved? (cond
                     [(equal? 'unsat (car res))
