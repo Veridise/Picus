@@ -31,10 +31,7 @@
 ; recursively apply linear lemma
 (define (apply-lemma ks us p1cnsts range-vec)
     (printf "  # propagation (aboz lemma): ")
-    (define tmp-ks (list->set (set->list ks)))
-    (define tmp-us (list->set (set->list us)))
-
-    (set!-values (tmp-ks tmp-us) (process tmp-ks tmp-us p1cnsts range-vec))
+    (define-values (tmp-ks tmp-us) (process ks us p1cnsts range-vec))
     (let ([s0 (set-subtract tmp-ks ks)])
         (if (set-empty? s0)
             (printf "none.\n")
@@ -49,32 +46,32 @@
 (define (extract-signal-id x) (string->number (substring x 1)))
 
 (define (process ks us arg-r1cs range-vec)
-    (define tmp-ks (list->set (set->list ks)))
-    (define tmp-us (list->set (set->list us)))
-    (define n (length (r1cs:rcmds-vs arg-r1cs)))
-    (for ([i (range (- n 2))])
-        (define icnsts (r1cs:rcmds (list
-            (r1cs:rcmds-ref arg-r1cs i)
-            (r1cs:rcmds-ref arg-r1cs (+ 1 i))
-            (r1cs:rcmds-ref arg-r1cs (+ 2 i))
-        )))
-        (define res (match-full icnsts))
-        (when (not (null? res))
-            ; matched, analyze vars
-            ; list is: x, y0, y1, c
-            ; if c and x are unique, then y0 and y1 are unique
-            (define xid (extract-signal-id (list-ref res 0)))
-            (define cid (extract-signal-id (list-ref res 3)))
-            (define y0id (extract-signal-id (list-ref res 1)))
-            (define y1id (extract-signal-id (list-ref res 2)))
-            (when (and (set-member? tmp-ks xid) (set-member? tmp-ks cid))
-                (set! tmp-ks (set-union tmp-ks (set y0id y1id)))
-                (set! tmp-us (set-subtract tmp-us (set y0id y1id)))
-            )
-        )
-    )
-    (values tmp-ks tmp-us)
-)
+  (define vs (r1cs:rcmds-vs arg-r1cs))
+  (match vs
+    ;; requires at least 3 elements in vs
+    [(list _ ..3)
+     (for/fold ([ks ks] [us us])
+               ([ea (in-list vs)]
+                [eb (in-list (rest vs))]
+                [ec (in-list (rest (rest vs)))])
+       (define icnsts (r1cs:rcmds (list ea eb ec)))
+       (match (match-full icnsts)
+         [#f (values ks us)]
+         ; matched, analyze vars
+         ; list is: x, y0, y1, c
+         ; if c and x are unique, then y0 and y1 are unique
+         [(list x y0 y1 c)
+          (define xid (extract-signal-id x))
+          (define cid (extract-signal-id c))
+          (define y0id (extract-signal-id y0))
+          (define y1id (extract-signal-id y1))
+          (cond
+            [(and (set-member? ks xid) (set-member? ks cid))
+             (values (set-union ks (set y0id y1id))
+                     (set-subtract us (set y0id y1id)))]
+            [else (values ks us)])]))]
+    ;; otherwise, return (ks, us) unchanged
+    [_ (values ks us)]))
 
 ; (fixme) list-no-order should be enforced
 ; return a list of: x, y0, y1, c
@@ -111,9 +108,7 @@
                 ; valu matched
                 (list xa y0a y1a c)
                 ; not matched
-                null
-            )
-        ]
+                #f)]
 
         ; ==============================
         ; ==== finite field version ====
@@ -145,11 +140,7 @@
                 ; valu matched
                 (list xa y0a y1a c)
                 ; not matched
-                null
-            )
-        ]
+                #f)]
 
         ; otherwise, do not rewrite
-        [_ null]
-    )
-)
+        [_ #f]))
