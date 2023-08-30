@@ -16,11 +16,8 @@
 
 ; recursively apply linear lemma
 (define (apply-lemma ks us p1cnsts range-vec)
-    (printf "  # propagation (aboz lemma): ")
-    (define tmp-ks (list->set (set->list ks)))
-    (define tmp-us (list->set (set->list us)))
-
-    (set!-values (tmp-ks tmp-us) (process tmp-ks tmp-us p1cnsts range-vec))
+    (printf "  # propagation (bim lemma): ")
+    (define-values (tmp-ks tmp-us) (process ks us p1cnsts range-vec))
     (let ([s0 (set-subtract tmp-ks ks)])
         (if (set-empty? s0)
             (printf "none.\n")
@@ -62,9 +59,9 @@
     ; sort and construct matrix
     (define eqmaps (make-vector (length eqs) null))
     (define smap (make-hash))
-    (for ([i (range (length eqs))])
-        (vector-set! eqmaps i (make-hash (list-ref eqs i)))
-        (for ([p (list-ref eqs i)])
+    (for ([eq (in-list eqs)] [i (in-naturals)])
+        (vector-set! eqmaps i (make-hash eq))
+        (for ([p eq])
             (when (not (hash-has-key? smap (car p)))
                 (hash-set! smap (car p) (hash-count smap)))
         )
