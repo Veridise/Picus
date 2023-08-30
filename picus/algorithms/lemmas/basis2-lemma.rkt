@@ -15,10 +15,7 @@
 ; recursively apply linear lemma
 (define (apply-lemma ks us p1cnsts range-vec)
     (printf "  # propagation (basis2 lemma): ")
-    (define tmp-ks (list->set (set->list ks)))
-    (define tmp-us (list->set (set->list us)))
-
-    (set!-values (tmp-ks tmp-us) (process tmp-ks tmp-us p1cnsts range-vec))
+    (define-values (tmp-ks tmp-us) (process ks us p1cnsts range-vec))
     (let ([s0 (set-subtract tmp-ks ks)])
         (if (set-empty? s0)
             (printf "none.\n")
@@ -60,9 +57,7 @@
 )
 
 (define (process ks us arg-r1cs range-vec)
-    (define tmp-ks (list->set (set->list ks)))
-    (define tmp-us (list->set (set->list us)))
-    (for ([obj (r1cs:rcmds-vs arg-r1cs)])
+    (for/fold ([ks ks] [us us]) ([obj (r1cs:rcmds-vs arg-r1cs)])
         (match obj
 
             ; ==================================
@@ -89,7 +84,7 @@
                     ; (printf "vs: ~a\n" vs)
                     ; (printf "xs: ~a\n" xs)
                 ; )
-                (set!-values (tmp-ks tmp-us) (update tmp-ks tmp-us x0 vs xs range-vec))
+                (update ks us x0 vs xs range-vec)
             ]
             ; flip
             [(r1cs:rassert (r1cs:req
@@ -102,7 +97,7 @@
                 )
                 (r1cs:rvar "zero")
              ))
-                (set!-values (tmp-ks tmp-us) (update tmp-ks tmp-us x0 vs xs range-vec))
+                (update ks us x0 vs xs range-vec)
             ]
 
             ; ==============================
@@ -115,7 +110,7 @@
                     (r1cs:rmul (list-no-order vs (r1cs:rvar xs))) ...
                 ))
              ))
-                (set!-values (tmp-ks tmp-us) (update tmp-ks tmp-us x0 vs xs range-vec))
+                (update ks us x0 vs xs range-vec)
             ]
             ; flip
             [(r1cs:rassert (r1cs:req
@@ -125,14 +120,13 @@
                 ))
                 (r1cs:rvar "zero")
              ))
-                (set!-values (tmp-ks tmp-us) (update tmp-ks tmp-us x0 vs xs range-vec))
+                (update ks us x0 vs xs range-vec)
             ]
 
             ; otherwise, do not rewrite
-            [_ (void)]
+            [_ (values ks us)]
         )
     )
-    (values tmp-ks tmp-us)
 )
 
 (define (update ks us x0 vs xs range-vec)
@@ -141,8 +135,8 @@
             (for/set ([i (range (floor (log config:p 2)))])
               (for/set ([j (range (+ 1 i))])
                 (expt 2 j)))))
-    (define tmp-ks (list->set (set->list ks)))
-    (define tmp-us (list->set (set->list us)))
+    (define tmp-ks ks)
+    (define tmp-us us)
     ; extract coefficients
     ; need to remap by calling p-v since they are all in form of pv
     ; when moved to the other side they become v
