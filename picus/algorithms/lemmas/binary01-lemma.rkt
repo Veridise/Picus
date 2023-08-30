@@ -4,41 +4,32 @@
 ; this requires p1cnsts
 ; (note) this lemma currently only applies to {a,b}={0,1}, add support for other values if necessary later
 ; (note) this lemma requires ab0 optimization first, applies on p1cnsts
-(require
-    (prefix-in config: "../../config.rkt")
-    (prefix-in tokamak: "../../tokamak.rkt")
-    (prefix-in r1cs: "../../r1cs/r1cs-grammar.rkt")
-)
-(provide (rename-out
-    [apply-lemma apply-lemma]
-))
+(require (prefix-in tokamak: "../../tokamak.rkt")
+         (prefix-in r1cs: "../../r1cs/r1cs-grammar.rkt"))
+(provide apply-lemma)
 
 ; recursively apply linear lemma
 (define (apply-lemma ks us p1cnsts range-vec)
     (printf "  # propagation (binary01 lemma): ")
-    (define new-ks (list->set (set->list ks)))
-    (define new-us (list->set (set->list us)))
 
     (process p1cnsts range-vec)
 
     ; for signals with only 1 value, they are already unique
     ; (note) but we also need to check for signals that have no valid values, which may be compilation error
-    (for ([sid (range (vector-length range-vec))])
-        (when (set? (vector-ref range-vec sid))
-            (cond
-                [(equal? 0 (set-count (vector-ref range-vec sid)))
-                    (tokamak:exit "range-vec has 0 candidate values, got ~a for signal ~a" (vector-ref range-vec sid) sid)
-                ]
-                ; (fixme) is this valid?
-                [(equal? 1 (set-count (vector-ref range-vec sid)))
-                    ; good, this is unique
-                    (set! new-ks (set-add new-ks sid))
-                    (set! new-us (set-remove new-us sid))
-                ]
-                [else (void)] ; else do nothing
-            )
-        )
-    )
+    (define-values (new-ks new-us)
+      (for/fold ([ks ks] [us us])
+                ([rng (in-vector range-vec)]
+                 [sid (in-naturals)]
+                 #:when (set? rng))
+        (match (set-count rng)
+          [0
+           (tokamak:exit "range-vec has 0 candidate values, got ~a for signal ~a" rng sid)]
+          ; (fixme) is this valid?
+          [1
+           ; good, this is unique
+           (values (set-add ks sid) (set-remove us sid))]
+          ; else do nothing
+          [_ (values ks us)])))
     (let ([s0 (set-subtract new-ks ks)])
         (if (set-empty? s0)
             (printf "none.\n")
@@ -72,8 +63,7 @@
 ; need to consider grammar of finite field and non finite field
 (define (process arg-r1cs range-vec)
     (define vs (r1cs:rcmds-vs arg-r1cs))
-    (for ([i (range (length vs))])
-        (define obj (list-ref vs i))
+    (for ([obj (in-list vs)])
         (match obj
 
             ; ==================================
