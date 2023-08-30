@@ -21,11 +21,6 @@
 (define selector-feedback null)
 (define selector-init null)
 
-; this is the selector context provided to every apply-selector call
-; grab the current context, then pack and return
-(define (selector-context)
-  (make-hash (list (cons 'rcdmap (l0:compute-rcdmap :sdmcnsts #t)))))
-
 ; problem pack, needs to be set and initialized by apply- function
 (define :r0 null)
 (define :nwires null)
@@ -82,6 +77,9 @@
 ;   - a set of potential values
 ; (note) this tracks the range, not the uniqueness status, they are different
 (define :range-vec null)
+
+(define :linear-clauses #f)
+(define :weight-map #f)
 
 ; main solving procedure
 ; returns:
@@ -166,7 +164,7 @@
      (values 'normal ks us null)]
     ; else, set not empty, move forward
     [else
-     (define sid (apply-selector uspool (selector-context)))
+     (define sid (apply-selector uspool :weight-map))
      (define-values (solved? info) (dpvl-solve ks us sid))
      ; send feedback to selector
      (selector-feedback sid solved?)
@@ -192,14 +190,8 @@
   (define tmp-ks (list->set (set->list ks)))
   (define tmp-us (list->set (set->list us)))
 
-  ; prepare lemma 0
-  ; generate rcdmap requires no optimization to exclude ror and rand
-  ; rcdmap requires normalized constraints to get best results
-  (define rcdmap (l0:compute-rcdmap :sdmcnsts #t))
-  ; (for ([key (hash-keys rcdmap)]) (printf "~a => ~a\n" key (hash-ref rcdmap key)))
-
   ; apply lemma 0: linear lemma
-  (set!-values (tmp-ks tmp-us) (l0:apply-lemma rcdmap tmp-ks tmp-us))
+  (set!-values (:linear-clauses tmp-ks tmp-us) (l0:apply-lemma :linear-clauses tmp-ks tmp-us))
 
   ; apply lemma 1: binary01 lemma
   (set!-values (tmp-ks tmp-us) (l1:apply-lemma tmp-ks tmp-us :p1cnsts :range-vec))
@@ -420,6 +412,11 @@
   ; ==== branch out: skip optimization phase 0 and apply expand & normalize ====
   ; computing rcdmap need no ab0 lemma from optimization phase 0
   (set! :sdmcnsts (:normalize-r1cs (:expand-r1cs :cnsts)))
+
+  ; generate linear-clauses requires no optimization to exclude ror and rand
+  ; linear-clauses requires normalized constraints to get best results
+  (set! :linear-clauses (l0:compute-linear-clauses :sdmcnsts #t))
+  (set! :weight-map (l0:compute-weight-map :linear-clauses))
 
   ; ==== first apply optimization phase 0 ====
   (set! :p0cnsts (:optimize-r1cs-p0 :cnsts))
