@@ -185,7 +185,7 @@
                         ; yes it's unique, then add all basis signals to known set
                         (begin
                             (set! tmp-ks (set-union tmp-ks (list->set siglist)))
-                            (set! tmp-us (set-remove tmp-us (list->set siglist)))
+                            (set! tmp-us (set-subtract tmp-us (list->set siglist)))
                             ; (when (equal? x0 "x2059")
                             ;     (printf "succeed.\n")
                             ;     (printf "old ks: ~a\n" ks)
