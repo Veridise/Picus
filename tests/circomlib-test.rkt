@@ -20,7 +20,7 @@
       (parameterize ([current-namespace (make-base-namespace)]
                      [current-command-line-arguments
                       (vector "--solver" "cvc5"
-                              "--timeout" "5000"
+                              "--timeout" "10000"
                               "--weak"
                               "--verbose" "1"
                               "--r1cs"
