@@ -12,22 +12,29 @@
 
   (define-check (check-result filename expected)
     (printf "=== checking ~a ===\n" filename)
+    (printf "##[group]~a\n" filename)
     (define-values (in out) (make-pipe))
     (define orig-out (current-output-port))
     (define string-port (open-output-string))
-    (parameterize ([current-namespace (make-base-namespace)]
-                   [current-command-line-arguments
-                    (vector "--solver" "cvc5"
-                            "--timeout" "5000"
-                            "--weak"
-                            "--verbose" "1"
-                            "--r1cs" (~a (build-path benchmark-dir
-                                                     (format "~a.r1cs" filename))))]
-                   [current-output-port out])
-      (define thd (thread (λ () (copy-port in orig-out string-port))))
-      (time (dynamic-require picus #f))
-      (close-output-port out)
-      (thread-wait thd))
+    (define-values (cpu real gc)
+      (parameterize ([current-namespace (make-base-namespace)]
+                     [current-command-line-arguments
+                      (vector "--solver" "cvc5"
+                              "--timeout" "5000"
+                              "--weak"
+                              "--verbose" "1"
+                              "--r1cs"
+                              (~a (build-path benchmark-dir
+                                              (format "~a.r1cs" filename))))]
+                     [current-output-port out])
+        (define thd (thread (λ () (copy-port in orig-out string-port))))
+        (match-define-values (_ cpu real gc)
+          (time-apply (λ () (dynamic-require picus #f)) '()))
+        (close-output-port out)
+        (thread-wait thd)
+        (values cpu real gc)))
+    (printf "##[endgroup]\n")
+    (printf "cpu: ~a; real: ~a; gc: ~a\n" cpu real gc)
     (check-regexp-match
      (match expected
        ['safe #px"(?m:^# weak uniqueness: safe\\.$)"]
