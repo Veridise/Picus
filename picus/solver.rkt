@@ -29,7 +29,6 @@
     (prefix-in cvc5-ab0: "./optimizers/r1cs-cvc5-ab0-optimizer.rkt")
 )
 (provide (rename-out
-    [state-smt-path state-smt-path]
     [solve solve]
     [parse-r1cs parse-r1cs]
     [expand-r1cs expand-r1cs]
@@ -39,14 +38,6 @@
     [interpret-r1cs interpret-r1cs]
 ))
 
-(define (state-smt-path arg-solver)
-    (cond
-        [(equal? "z3" arg-solver) (lambda () z3-solver:state-smt-path)]
-        [(equal? "cvc4" arg-solver) (lambda () cvc4-solver:state-smt-path)]
-        [(equal? "cvc5" arg-solver) (lambda () cvc5-solver:state-smt-path)]
-        [else (tokamak:exit "you can't reach here")]
-    )
-)
 (define (solve arg-solver)
     (cond
         [(equal? "z3" arg-solver) z3-solver:solve]

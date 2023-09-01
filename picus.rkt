@@ -80,7 +80,6 @@
 ; =================================================
 ; ======== resolve solver specific methods ========
 ; =================================================
-(define state-smt-path (solver:state-smt-path arg-solver))
 (define solve (solver:solve arg-solver))
 (define parse-r1cs (solver:parse-r1cs arg-solver))
 (define expand-r1cs (solver:expand-r1cs arg-solver))
@@ -164,7 +163,7 @@
    alt-varlist alt-defs alt-cnsts
    unique-set precondition ; prior knowledge row
    arg-selector arg-prop arg-slv arg-timeout arg-smt arg-cex-verbose path-sym
-   solve state-smt-path interpret-r1cs
+   solve interpret-r1cs
    optimize-r1cs-p0 expand-r1cs normalize-r1cs optimize-r1cs-p1))
 (printf "# final unknown set ~a.\n" res-us)
 (if arg-weak
