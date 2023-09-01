@@ -59,7 +59,6 @@
 (define :precondition null)
 
 (define :solve null)
-(define :state-smt-path null)
 (define :interpret-r1cs null)
 
 (define :optimize-r1cs-p0 null)
@@ -119,7 +118,7 @@
                       (r1cs:rsolve))))))
   ; perform optimization
   (define final-str (:interpret-r1cs (r1cs:rcmds-append :opts final-cmds)))
-  (define res (:solve final-str :arg-timeout #:output-smt? #f))
+  (define-values (res smt-path) (:solve final-str :arg-timeout #:output-smt? #f))
   (define solved? (cond
                     [(equal? 'unsat (car res))
                      (printf "verified.\n")
@@ -147,7 +146,7 @@
                      ; possibly timeout in small step, result is unknown
                      'skip]))
   (when :arg-smt
-    (printf "    # smt path: ~a\n" (:state-smt-path)))
+    (printf "    # smt path: ~a\n" smt-path))
   (values solved? (cdr res)))
 
 ; select and solve
@@ -337,7 +336,7 @@
          alt-varlist alt-defs alt-cnsts
          unique-set precondition
          arg-selector arg-prop arg-slv arg-timeout arg-smt arg-cex-verbose path-sym
-         solve state-smt-path interpret-r1cs
+         solve interpret-r1cs
          optimize-r1cs-p0 expand-r1cs normalize-r1cs optimize-r1cs-p1
          ; extra constraints, usually from cex module about partial model
          #:extcnsts [extcnsts (r1cs:rcmds (list ))]
@@ -374,7 +373,6 @@
   (set! :precondition precondition)
 
   (set! :solve solve)
-  (set! :state-smt-path state-smt-path)
   (set! :interpret-r1cs interpret-r1cs)
 
   (set! :optimize-r1cs-p0 optimize-r1cs-p0)

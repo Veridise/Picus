@@ -30,7 +30,7 @@
     alt-xlist alt-defs alt-cnsts
     unique-set precondition
     arg-selector arg-prop arg-timeout arg-smt path-sym
-    solve state-smt-path interpret-r1cs
+    solve interpret-r1cs
     parse-r1cs optimize-r1cs-p0 expand-r1cs normalize-r1cs optimize-r1cs-p1
     )
 
@@ -87,7 +87,7 @@
             alt-xlist alt-defs i-alt-cnsts
             unique-set precondition ; prior knowledge row
             arg-selector arg-prop arg-timeout arg-smt path-sym
-            solve state-smt-path interpret-r1cs
+            solve interpret-r1cs
             parse-r1cs optimize-r1cs-p0 expand-r1cs normalize-r1cs optimize-r1cs-p1
             #:extcnsts (model2cnsts partial-model)
         ))
