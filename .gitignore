@@ -1,3 +1,4 @@
+benchmarks/**/patched-*
 benchmarks/**/*.json
 benchmarks/**/*.sym
 benchmarks/**/*.r1cs

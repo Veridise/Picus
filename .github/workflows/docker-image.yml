@@ -43,8 +43,6 @@ jobs:
       - uses: actions/checkout@v1
       - name: linking circom
         run: ln -s /root/.cargo/bin/circom /usr/bin/circom
-      - name: compile circomlib
-        run: bash ./scripts/prepare-circomlib.sh
       - name: run picus with cvc5, using v3
         run: raco test ./tests/circomlib-test.rkt
 
