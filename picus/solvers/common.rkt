@@ -37,18 +37,15 @@
        (subprocess-wait sp)
        (cons out-str err-str))))
 
-  (define (kill-process)
-    (subprocess-kill sp #t)
-    (close-input-port out)
-    (close-input-port err)
-    (values (cons 'timeout "") temp-path))
-
   (define eres
-    (call-with-exception-handler
-     (λ (exn)
-       (when (exn:break? exn)
-         (kill-process)))
-     (λ () (engine-run timeout engine0))))
+    (dynamic-wind
+      void
+      (λ () (engine-run timeout engine0))
+      (λ ()
+        (when (eq? 'running (subprocess-status sp))
+          (subprocess-kill sp #t))
+        (close-input-port out)
+        (close-input-port err))))
 
   (cond
     [eres
@@ -63,7 +60,7 @@
                [(string-prefix? out-str "unknown") (cons 'unknown out-str)]
                [else (cons 'else out-str)])
              temp-path)]
-    [else (kill-process)]))
+    [else (values (cons 'timeout "") temp-path)]))
 
 ; example cvc5 string:
 ; sat
