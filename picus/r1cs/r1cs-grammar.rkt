@@ -125,12 +125,7 @@
     ; define internal function
     (define (do obj0)
         (match obj0
-            [(rcmds vs)
-                (let ([res (list )])
-                    (for ([v vs]) (set! res (append res (do v))))
-                    res
-                )
-            ]
+            [(rcmds vs) (append* (for/list ([v vs]) (do v)))]
             [(rraw v) (list )]
             [(rlogic v) (list )]
             [(rdef v t) (list )]
@@ -143,19 +138,9 @@
             [(rlt lhs rhs) (append (do lhs) (do rhs))]
             [(rgeq lhs rhs) (append (do lhs) (do rhs))]
             [(rgt lhs rhs) (append (do lhs) (do rhs))]
-            [(rand vs)
-                (let ([res (list )])
-                    (for ([v vs]) (set! res (append res (do v))))
-                    res
-                )
-            ]
+            [(rand vs) (append* (for/list ([v vs]) (do v)))]
             [(rimp lhs rhs) (append (do lhs) (do rhs))]
-            [(ror vs)
-                (let ([res (list )])
-                    (for ([v vs]) (set! res (append res (do v))))
-                    res
-                )
-            ]
+            [(ror vs) (append* (for/list ([v vs]) (do v)))]
             [(rint v) (list )]
             [(rvar v)
                 ; (fixme) we here assume prefix is either "x" or "y"
@@ -173,26 +158,11 @@
                 )
             ]
             [(rtype v) (list )]
-            [(radd vs)
-                (let ([res (list )])
-                    (for ([v vs]) (set! res (append res (do v))))
-                    res
-                )
-            ]
-            [(rsub vs)
-                (let ([res (list )])
-                    (for ([v vs]) (set! res (append res (do v))))
-                    res
-                )
-            ]
-            [(rmul vs)
-                (let ([res (list )])
-                    (for ([v vs]) (set! res (append res (do v))))
-                    res
-                )
-            ]
+            [(radd vs) (append* (for/list ([v vs]) (do v)))]
+            [(rsub vs) (append* (for/list ([v vs]) (do v)))]
+            [(rmul vs) (append* (for/list ([v vs]) (do v)))]
             [(rmod v mod) (append (do v) (do mod))]
-            [else (tokamak:exit "not supported: ~a" obj0)]
+            [_ (tokamak:exit "not supported: ~a" obj0)]
         )
     )
     ; then call it and remove duplicates, and return
@@ -214,12 +184,7 @@
     ; define internal function
     (define (do obj0)
         (match obj0
-            [(rcmds vs)
-                (let ([res (list )])
-                    (for ([v vs]) (set! res (append res (do v))))
-                    res
-                )
-            ]
+            [(rcmds vs) (append* (for/list ([v vs]) (do v)))]
             [(rraw v) (list )]
             [(rlogic v) (list )]
             [(rdef v t) (list )]
@@ -246,18 +211,8 @@
                 )
             ]
             [(rtype v) (list )]
-            [(radd vs)
-                (let ([res (list )])
-                    (for ([v vs]) (set! res (append res (do v))))
-                    res
-                )
-            ]
-            [(rsub vs)
-                (let ([res (list )])
-                    (for ([v vs]) (set! res (append res (do v))))
-                    res
-                )
-            ]
+            [(radd vs) (append* (for/list ([v vs]) (do v)))]
+            [(rsub vs) (append* (for/list ([v vs]) (do v)))]
             ; (assumed optimized version)
             ; - 1*x will be x, which will not be captured by rmul
             ; - (fixme) this could be wrong, a*x is treated as linear,
@@ -275,7 +230,7 @@
                 )
             ]
             [(rmod v mod) (append (do v) (do mod))]
-            [else (tokamak:exit "not supported: ~a" obj0)]
+            [_ (tokamak:exit "not supported: ~a" obj0)]
         )
     )
     ; then call it and remove duplicates, and return
@@ -286,12 +241,7 @@
     ; define internal function
     (define (do obj0 [include? #f])
         (match obj0
-            [(rcmds vs)
-                (let ([res (list )])
-                    (for ([v vs]) (set! res (append res (do v include?))))
-                    res
-                )
-            ]
+            [(rcmds vs) (append* (for/list ([v vs]) (do v include?)))]
             [(rraw v) (list )]
             [(rlogic v) (list )]
             [(rdef v t) (list )]
@@ -323,30 +273,17 @@
             ]
             [(rtype v) (list )]
             [(radd vs)
-                (let ([res (list )])
-                    (for ([v vs]) (set! res (append res (do v include?))))
-                    res
-                )
-            ]
-            [(rsub vs)
-                (let ([res (list )])
-                    (for ([v vs]) (set! res (append res (do v include?))))
-                    res
-                )
-            ]
+             (append* (for/list ([v vs]) (do v include?)))]
+            [(rsub vs) (append* (for/list ([v vs]) (do v include?)))]
             [(rmul vs)
-                (let ([res (list )][vv (filter (lambda (x) (rvar? x)) vs)])
-                    (if (<= (length vv) 1)
-                        ; less than 1 var, this is just linear
-                        (set! res (list ))
-                        ; more than 1 var, all involved vars are non-linear
-                        (for ([v vv]) (set! res (append res (do v #t))))
-                    )
-                    res
-                )
-            ]
+             (define vv (filter (lambda (x) (rvar? x)) vs))
+             (if (<= (length vv) 1)
+                 ; less than 1 var, this is just linear
+                 '()
+                 ; more than 1 var, all involved vars are non-linear
+                 (append* (for/list ([v vs]) (do v #t))))]
             [(rmod v mod) (append (do v include?) (do mod include?))]
-            [else (tokamak:exit "not supported: ~a" obj0)]
+            [_ (tokamak:exit "not supported: ~a" obj0)]
         )
     )
     ; then call it and remove duplicates, and return
