@@ -16,6 +16,7 @@
 ; parse command line arguments
 (define arg-r1cs #f)
 (define arg-circom #f)
+(define arg-opt-level #f)
 (define arg-timeout 5000)
 (define arg-solver "z3")
 (define arg-selector "counter")
@@ -36,6 +37,11 @@
                (when (not (string-suffix? arg-circom ".circom"))
                  (tokamak:exit "file needs to be *.circom"))]
  #:once-each
+ [("--opt-level") p-opt-level "optimization level for circom compilation (only applicable for --circom, default: 0)"
+                  (set! arg-opt-level
+                        (match p-opt-level
+                          [(or "0" "1" "2") p-opt-level]
+                          [_ (tokamak:exit "unrecognized optimization level: ~a" p-opt-level)]))]
  [("--timeout") p-timeout "timeout for every small query (default: 5000ms)"
                 (set! arg-timeout (string->number p-timeout))]
  [("--solver") p-solver "solver to use: z3 | cvc4 | cvc5 (default: z3)"
@@ -76,6 +82,9 @@
 (unless (or arg-r1cs arg-circom)
   (tokamak:exit "specify either --r1cs or --circom"))
 
+(unless (implies arg-opt-level arg-circom)
+  (tokamak:exit "optimization level only applicable for --circom"))
+
 ;; invariant: tmpdir = #f iff arg-circom = #f
 (define tmpdir
   (cond
@@ -89,7 +98,10 @@
                    "--r1cs"
                    arg-circom
                    "--sym"
-                   "--O0")
+                   (match arg-opt-level
+                     [(or #f "0") "--O0"]
+                     ["1" "--O1"]
+                     ["2" "--O2"]))
     (tokamak:exit "circom compilation failed"))
   (set! arg-r1cs (~a (build-path tmpdir (file-name-from-path (path-replace-extension arg-circom ".r1cs"))))))
 
