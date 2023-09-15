@@ -32,6 +32,28 @@ jobs:
         run: |
           grep "^# weak uniqueness: unsafe\.$" ./result.out
 
+  test-circom-mode:
+    runs-on: ubuntu-latest
+    container:
+      image: veridise/picus:git-latest
+    env:
+      PLTADDONDIR: /root/.local/share/racket/
+    steps:
+      - uses: actions/checkout@v1
+      - name: linking circom
+        run: ln -s /root/.cargo/bin/circom /usr/bin/circom
+      - name: run picus with z3, using v3
+        run: |
+          racket ./picus.rkt \
+              --solver z3 \
+              --circom ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.circom \
+              --weak | \
+            tee result.out
+        shell: bash # this ensures that pipefail is set
+      - name: test expected result
+        run: |
+          grep "^# weak uniqueness: unsafe\.$" ./result.out
+
   # run the full test for cvc5
   test-solve-with-cvc5:
     runs-on: ubuntu-latest

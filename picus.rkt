@@ -14,7 +14,8 @@
 ; ======== commandline parsing ========
 ; =====================================
 ; parse command line arguments
-(define arg-r1cs null)
+(define arg-r1cs #f)
+(define arg-circom #f)
 (define arg-timeout 5000)
 (define arg-solver "z3")
 (define arg-selector "counter")
@@ -25,11 +26,16 @@
 (define arg-weak #f)
 (define arg-cex-verbose 0)
 (command-line
- #:once-each
+ #:once-any
  [("--r1cs") p-r1cs "path to target r1cs"
              (set! arg-r1cs p-r1cs)
              (when (not (string-suffix? arg-r1cs ".r1cs"))
                (tokamak:exit "file needs to be *.r1cs"))]
+ [("--circom") p-circom "path to target circom (need circom compiler in PATH)"
+               (set! arg-circom p-circom)
+               (when (not (string-suffix? arg-circom ".circom"))
+                 (tokamak:exit "file needs to be *.circom"))]
+ #:once-each
  [("--timeout") p-timeout "timeout for every small query (default: 5000ms)"
                 (set! arg-timeout (string->number p-timeout))]
  [("--solver") p-solver "solver to use: z3 | cvc4 | cvc5 (default: z3)"
@@ -66,6 +72,36 @@
                           (match cex-verbose
                             [(or "0" "1" "2") (string->number cex-verbose)]
                             [_ (tokamak:exit "unrecognized verbose level: ~a" cex-verbose)]))])
+
+(unless (or arg-r1cs arg-circom)
+  (tokamak:exit "specify either --r1cs or --circom"))
+
+;; invariant: tmpdir = #f iff arg-circom = #f
+(define tmpdir
+  (cond
+    [arg-circom (make-temporary-directory "picus~a")]
+    [else #f]))
+
+(when arg-circom
+  (unless (system* (find-executable-path "circom")
+                   "-o"
+                   tmpdir
+                   "--r1cs"
+                   arg-circom
+                   "--sym"
+                   "--O0")
+    (tokamak:exit "circom compilation failed"))
+  (set! arg-r1cs (~a (build-path tmpdir (file-name-from-path (path-replace-extension arg-circom ".r1cs"))))))
+
+;; NOTE: we intentionally do not use call this function within
+;; dynamic-wind (i.e. try-finally) so that if the program crashes
+;; we can still inspect the temporary directory,
+;; although cleaning up the temporary directory in such case is now
+;; a responsibility of the user.
+(define (clean-tmpdir!)
+  (when arg-circom
+    (delete-directory/files tmpdir)))
+
 (printf "# r1cs file: ~a\n" arg-r1cs)
 (printf "# timeout: ~a\n" arg-timeout)
 (printf "# solver: ~a\n" arg-solver)
@@ -197,3 +233,5 @@
   (format-cex "second possible outputs" output2-ordered #:diff output1-ordered)
   (when (> arg-cex-verbose 0)
     (format-cex "other bindings" (order other-info))))
+
+(clean-tmpdir!)
