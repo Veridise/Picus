@@ -18,6 +18,7 @@
 (define arg-r1cs #f)
 (define arg-circom #f)
 (define arg-opt-level #f)
+(define arg-clean? #t)
 (define arg-timeout 5000)
 (define arg-solver "z3")
 (define arg-selector "counter")
@@ -38,6 +39,8 @@
                (when (not (string-suffix? arg-circom ".circom"))
                  (tokamak:exit "file needs to be *.circom"))]
  #:once-each
+ [("--noclean") "do not clean up temporary files (default: false)"
+                (set! arg-clean? #f)]
  [("--opt-level") p-opt-level "optimization level for circom compilation (only applicable for --circom, default: 0)"
                   (set! arg-opt-level
                         (match p-opt-level
@@ -234,4 +237,5 @@
   (when (> arg-cex-verbose 0)
     (format-cex "other bindings" (order other-info))))
 
-(clean-tmpdir!)
+(when arg-clean?
+  (clean-tmpdir!))
