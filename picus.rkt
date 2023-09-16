@@ -7,6 +7,7 @@
          (prefix-in r1cs: "./picus/r1cs/r1cs-grammar.rkt")
          (prefix-in dpvl: "./picus/algorithms/dpvl.rkt")
          (prefix-in pre: "./picus/precondition.rkt")
+         "picus/tmpdir.rkt"
          "ansi.rkt"
          "verbose.rkt")
 
@@ -85,16 +86,10 @@
 (unless (implies arg-opt-level arg-circom)
   (tokamak:exit "optimization level only applicable for --circom"))
 
-;; invariant: tmpdir = #f iff arg-circom = #f
-(define tmpdir
-  (cond
-    [arg-circom (make-temporary-directory "picus~a")]
-    [else #f]))
-
 (when arg-circom
   (unless (system* (find-executable-path "circom")
                    "-o"
-                   tmpdir
+                   (get-tmpdir)
                    "--r1cs"
                    arg-circom
                    "--sym"
@@ -103,16 +98,9 @@
                      ["1" "--O1"]
                      ["2" "--O2"]))
     (tokamak:exit "circom compilation failed"))
-  (set! arg-r1cs (~a (build-path tmpdir (file-name-from-path (path-replace-extension arg-circom ".r1cs"))))))
-
-;; NOTE: we intentionally do not use call this function within
-;; dynamic-wind (i.e. try-finally) so that if the program crashes
-;; we can still inspect the temporary directory,
-;; although cleaning up the temporary directory in such case is now
-;; a responsibility of the user.
-(define (clean-tmpdir!)
-  (when arg-circom
-    (delete-directory/files tmpdir)))
+  (set! arg-r1cs (~a (build-path (get-tmpdir)
+                                 (file-name-from-path
+                                  (path-replace-extension arg-circom ".r1cs"))))))
 
 (printf "# r1cs file: ~a\n" arg-r1cs)
 (printf "# timeout: ~a\n" arg-timeout)
