@@ -4,7 +4,7 @@
 ; note that this lemma doesn't apply to the following:
 ;   c * x0 * x1 = (unique), and c * x0 != 0
 (require (prefix-in r1cs: "../../r1cs/r1cs-grammar.rkt")
-         "../../../verbose.rkt")
+         "../../verbose.rkt")
 (provide compute-linear-clauses
          compute-weight-map
          apply-lemma)
