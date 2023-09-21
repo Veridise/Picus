@@ -5,17 +5,17 @@
          racket/port
          racket/match
          racket/engine
+         racket/file
          (prefix-in tokamak: "../tokamak.rkt")
-         (prefix-in config: "../config.rkt"))
+         (prefix-in config: "../config.rkt")
+         "../tmpdir.rkt")
 
 (define ((make-solve #:executable executable
                      #:options [options '()])
          smt-str timeout #:verbose? [verbose? #f] #:output-smt? [output-smt? #f])
-  (define temp-folder (find-system-path 'temp-dir))
-  (define temp-file (format "picus~a.smt2"
-                            (string-replace (format "~a" (current-inexact-milliseconds)) "." "")))
-  (define temp-path (build-path temp-folder temp-file))
+  (define temp-path (make-temporary-file "picus~a.smt2" #:base-dir (get-tmpdir)))
   (with-output-to-file temp-path
+    #:exists 'replace
     (λ () (display smt-str)))
   (when (or verbose? output-smt?)
     (printf "(written to: ~a)\n" temp-path))

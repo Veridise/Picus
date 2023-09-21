@@ -7,6 +7,7 @@
          (prefix-in r1cs: "./picus/r1cs/r1cs-grammar.rkt")
          (prefix-in dpvl: "./picus/algorithms/dpvl.rkt")
          (prefix-in pre: "./picus/precondition.rkt")
+         "picus/tmpdir.rkt"
          "ansi.rkt"
          "verbose.rkt")
 
@@ -17,6 +18,7 @@
 (define arg-r1cs #f)
 (define arg-circom #f)
 (define arg-opt-level #f)
+(define arg-clean? #t)
 (define arg-timeout 5000)
 (define arg-solver "z3")
 (define arg-selector "counter")
@@ -37,6 +39,8 @@
                (when (not (string-suffix? arg-circom ".circom"))
                  (tokamak:exit "file needs to be *.circom"))]
  #:once-each
+ [("--noclean") "do not clean up temporary files (default: false)"
+                (set! arg-clean? #f)]
  [("--opt-level") p-opt-level "optimization level for circom compilation (only applicable for --circom, default: 0)"
                   (set! arg-opt-level
                         (match p-opt-level
@@ -85,16 +89,10 @@
 (unless (implies arg-opt-level arg-circom)
   (tokamak:exit "optimization level only applicable for --circom"))
 
-;; invariant: tmpdir = #f iff arg-circom = #f
-(define tmpdir
-  (cond
-    [arg-circom (make-temporary-directory "picus~a")]
-    [else #f]))
-
 (when arg-circom
   (unless (system* (find-executable-path "circom")
                    "-o"
-                   tmpdir
+                   (get-tmpdir)
                    "--r1cs"
                    arg-circom
                    "--sym"
@@ -103,16 +101,9 @@
                      ["1" "--O1"]
                      ["2" "--O2"]))
     (tokamak:exit "circom compilation failed"))
-  (set! arg-r1cs (~a (build-path tmpdir (file-name-from-path (path-replace-extension arg-circom ".r1cs"))))))
-
-;; NOTE: we intentionally do not use call this function within
-;; dynamic-wind (i.e. try-finally) so that if the program crashes
-;; we can still inspect the temporary directory,
-;; although cleaning up the temporary directory in such case is now
-;; a responsibility of the user.
-(define (clean-tmpdir!)
-  (when arg-circom
-    (delete-directory/files tmpdir)))
+  (set! arg-r1cs (~a (build-path (get-tmpdir)
+                                 (file-name-from-path
+                                  (path-replace-extension arg-circom ".r1cs"))))))
 
 (printf "# r1cs file: ~a\n" arg-r1cs)
 (printf "# timeout: ~a\n" arg-timeout)
@@ -246,4 +237,5 @@
   (when (> arg-cex-verbose 0)
     (format-cex "other bindings" (order other-info))))
 
-(clean-tmpdir!)
+(when arg-clean?
+  (clean-tmpdir!))
