@@ -11,7 +11,7 @@
          (prefix-in l3: "./lemmas/aboz-lemma.rkt")
          (prefix-in l4: "./lemmas/bim-lemma.rkt")
          ; (prefix-in ln0: "./lemmas/baby-lemma.rkt")
-         "../../verbose.rkt")
+         "../verbose.rkt")
 (provide apply-algorithm)
 
 ; ======== module global variables ======== ;

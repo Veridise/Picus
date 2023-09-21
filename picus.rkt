@@ -8,8 +8,8 @@
          (prefix-in dpvl: "./picus/algorithms/dpvl.rkt")
          (prefix-in pre: "./picus/precondition.rkt")
          "picus/tmpdir.rkt"
-         "ansi.rkt"
-         "verbose.rkt")
+         "picus/ansi.rkt"
+         "picus/verbose.rkt")
 
 ; =====================================
 ; ======== commandline parsing ========
