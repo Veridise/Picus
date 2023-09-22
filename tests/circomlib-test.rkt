@@ -25,67 +25,15 @@
   (define (make-run-config filename #:timeout [timeout 60])
     (run-config filename timeout))
 
-  (define (get-full-path filename)
-    (~a (build-path benchmark-dir filename)))
-
   (define (flush)
     (flush-output)
     (flush-output (current-error-port)))
-
-  (define (compile-circom circom-path)
-    (flush)
-    (system* (find-executable-path "circom")
-             "-o"
-             benchmark-dir
-             "--r1cs"
-             circom-path
-             "--sym"
-             "--O0"
-             #;"--jsons")
-    (flush))
-
-  (define (has-public-input? orig-content)
-    ;; match a line starting with "component main =".
-    ;; This is very hacky, but it is the case that in our benchmarks,
-    ;; every file that contains "component main =" has no public input.
-    (not (regexp-match? #px"(?m:^component main =)" orig-content)))
 
   (define-check (check:core run-conf expected)
     (match-define (run-config filename timeout) run-conf)
     (printf "=== checking ~a ===\n" filename)
     (printf "##[group]~a\n" filename)
-    (printf "Compiling circom file\n")
-    (define circom-path (get-full-path (format "~a.circom" filename)))
-    (define r1cs-path (get-full-path (format "~a.r1cs" filename)))
-    (define sym-path (get-full-path (format "~a.sym" filename)))
-
-    ;; initially compile Circom to get information about public inputs
-    (compile-circom circom-path)
-
-    (define orig-content (file->string circom-path))
-
-    (define real-r1cs-path
-      (cond
-        [(has-public-input? orig-content) r1cs-path]
-        [else
-         (define public-inputs (get-global-inputs r1cs-path sym-path))
-         (define patched-circom-path (get-full-path (format "patched-~a.circom" filename)))
-         (define patched-r1cs-path (get-full-path (format "patched-~a.r1cs" filename)))
-
-         (with-output-to-file patched-circom-path
-           #:exists 'replace
-           (λ ()
-             (displayln
-              (string-replace
-               orig-content
-               "component main ="
-               (format "component main {public [~a]} ="
-                       (string-join public-inputs ", "))))))
-
-         (compile-circom patched-circom-path)
-         patched-r1cs-path]))
-
-    (printf "Starting Picus\n")
+    (flush)
     (define-values (in out) (make-pipe))
     (define orig-out (current-output-port))
     (define string-port (open-output-string))
@@ -99,7 +47,10 @@
                             "--timeout" "5000"
                             "--weak"
                             "--verbose" "1"
-                            "--r1cs" real-r1cs-path)]
+                            "--circom" (~a (build-path
+                                            benchmark-dir
+                                            (format "~a.circom" filename)))
+                            "--patch-circom")]
                    [current-output-port out])
       (define main-thd
         (thread (λ ()
