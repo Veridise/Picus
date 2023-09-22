@@ -10,7 +10,7 @@
            racket/format
            racket/match
            rackunit
-           "../picus/public-inputs.rkt")
+           "../picus/global-inputs.rkt")
 
   (define filenames
     (command-line
@@ -68,7 +68,7 @@
       (cond
         [(has-public-input? orig-content) r1cs-path]
         [else
-         (define public-inputs (get-public-inputs r1cs-path sym-path))
+         (define public-inputs (get-global-inputs r1cs-path sym-path))
          (define patched-circom-path (get-full-path (format "patched-~a.circom" filename)))
          (define patched-r1cs-path (get-full-path (format "patched-~a.r1cs" filename)))
 

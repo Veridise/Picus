@@ -1,13 +1,13 @@
 #lang racket/base
 
-(provide get-public-inputs)
+(provide get-global-inputs)
 
 (require racket/set
          racket/match
          csv-reading
          (prefix-in r1cs: "./r1cs/r1cs-grammar.rkt"))
 
-(define (get-public-inputs r1cs-path sym-path)
+(define (get-global-inputs r1cs-path sym-path)
   (define r0 (r1cs:read-r1cs r1cs-path))
   (define input-signals (r1cs:r1cs-inputs r0))
   (define ins (list->set input-signals))
@@ -24,9 +24,9 @@
 
 (module+ test
   (require rackunit)
-  (check-equal? (get-public-inputs "../benchmarks/circomlib-cff5ab6/AliasCheck@aliascheck.r1cs"
+  (check-equal? (get-global-inputs "../benchmarks/circomlib-cff5ab6/AliasCheck@aliascheck.r1cs"
                                    "../benchmarks/circomlib-cff5ab6/AliasCheck@aliascheck.sym")
                 (set "in"))
-  (check-equal? (get-public-inputs "../benchmarks/circomlib-cff5ab6/BabyAdd@babyjub.r1cs"
+  (check-equal? (get-global-inputs "../benchmarks/circomlib-cff5ab6/BabyAdd@babyjub.r1cs"
                                    "../benchmarks/circomlib-cff5ab6/BabyAdd@babyjub.sym")
                 (set "x1" "y1" "x2" "y2")))
