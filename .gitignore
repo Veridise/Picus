@@ -1,4 +1,4 @@
-benchmarks/**/patched-*
+benchmarks/**/*.patched.circom
 benchmarks/**/*.json
 benchmarks/**/*.sym
 benchmarks/**/*.r1cs

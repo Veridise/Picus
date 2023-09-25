@@ -9,7 +9,8 @@
          (prefix-in pre: "./picus/precondition.rkt")
          "picus/tmpdir.rkt"
          "picus/ansi.rkt"
-         "picus/verbose.rkt")
+         "picus/verbose.rkt"
+         "picus/global-inputs.rkt")
 
 ; =====================================
 ; ======== commandline parsing ========
@@ -17,6 +18,7 @@
 ; parse command line arguments
 (define arg-r1cs #f)
 (define arg-circom #f)
+(define arg-patch? #f)
 (define arg-opt-level #f)
 (define arg-clean? #t)
 (define arg-timeout 5000)
@@ -41,6 +43,8 @@
  #:once-each
  [("--noclean") "do not clean up temporary files (default: false)"
                 (set! arg-clean? #f)]
+ [("--patch-circom") "patch circom file to add public inputs (only applicable for --circom, default: false)"
+                     (set! arg-patch? #t)]
  [("--opt-level") p-opt-level "optimization level for circom compilation (only applicable for --circom, default: 0)"
                   (set! arg-opt-level
                         (match p-opt-level
@@ -87,25 +91,70 @@
   (tokamak:exit "specify either --r1cs or --circom"))
 
 (unless (implies arg-opt-level arg-circom)
-  (tokamak:exit "optimization level only applicable for --circom"))
+  (tokamak:exit "--opt-level only applicable for --circom"))
 
-(when arg-circom
+(unless (implies arg-patch? arg-circom)
+  (tokamak:exit "--patch-circom only applicable for --circom"))
+
+;; compile-circom :: path? -> path?
+;; compile circom file to r1cs file
+(define (compile-circom circom-path)
   (unless (system* (find-executable-path "circom")
                    "-o"
                    (get-tmpdir)
                    "--r1cs"
-                   arg-circom
+                   circom-path
                    "--sym"
                    (match arg-opt-level
                      [(or #f "0") "--O0"]
                      ["1" "--O1"]
                      ["2" "--O2"]))
     (tokamak:exit "circom compilation failed"))
-  (set! arg-r1cs (~a (build-path (get-tmpdir)
-                                 (file-name-from-path
-                                  (path-replace-extension arg-circom ".r1cs"))))))
+  (~a (build-path
+       (get-tmpdir)
+       (file-name-from-path (path-replace-extension circom-path ".r1cs")))))
 
-(printf "# r1cs file: ~a\n" arg-r1cs)
+;; compile+patch-circom :: path? boolean? -> (values path? r1cs?)
+(define (compile+patch-circom circom-path patch?)
+  (define r1cs-path (compile-circom circom-path))
+  (cond
+    [patch?
+     (define r0 (r1cs:read-r1cs r1cs-path))
+     (cond
+       ;; no public inputs
+       [(zero? (r1cs:get-npubin r0))
+        (define patched-circom-path
+          (path-replace-extension circom-path ".patched.circom"))
+
+        (with-output-to-file patched-circom-path
+          #:exists 'replace
+          (λ ()
+            ;; HACK: this assumes that the circom file has a line with "component main ="
+            ;; which is the case for most circom files with no public inputs
+            (displayln
+             (string-replace
+              (file->string circom-path)
+              "component main ="
+              (format "component main {public [~a]} ="
+                      (string-join
+                       (get-global-inputs
+                        r1cs-path
+                        (path-replace-extension r1cs-path ".sym"))
+                       ", "))))))
+
+        (define patched-r1cs-path (compile-circom patched-circom-path))
+        (values patched-r1cs-path (r1cs:read-r1cs patched-r1cs-path))]
+       ;; already has public inputs
+       [else (values r1cs-path r0)])]
+    ;; not patching
+    [else (values r1cs-path (r1cs:read-r1cs r1cs-path))]))
+
+(define-values (r1cs-path r0)
+  (cond
+    [arg-r1cs (values arg-r1cs (r1cs:read-r1cs arg-r1cs))]
+    [else (compile+patch-circom arg-circom arg-patch?)]))
+
+(printf "# r1cs file: ~a\n" r1cs-path)
 (printf "# timeout: ~a\n" arg-timeout)
 (printf "# solver: ~a\n" arg-solver)
 (printf "# selector: ~a\n" arg-selector)
@@ -130,7 +179,6 @@
 ; ==================================
 ; ======== main preparation ========
 ; ==================================
-(define r0 (r1cs:read-r1cs arg-r1cs))
 (define nwires (r1cs:get-nwires r0))
 (define mconstraints (r1cs:get-mconstraints r0))
 (printf "# number of wires: ~a\n" nwires)
@@ -193,7 +241,7 @@
 ; p1cnsts
 ;    | (downstream queries)
 ;   ...
-(define path-sym (string-replace arg-r1cs ".r1cs" ".sym"))
+(define path-sym (string-replace r1cs-path ".r1cs" ".sym"))
 (define-values (res res-ks res-us res-info)
   (dpvl:apply-algorithm
    r0 nwires mconstraints
@@ -226,7 +274,7 @@
   (sort (hash->list info) string<? #:key car))
 
 (when (equal? 'unsafe res)
-  (printf "# ~a is underconstrained. Below is a counterexample:\n" arg-r1cs)
+  (printf "# ~a is underconstrained. Below is a counterexample:\n" r1cs-path)
   (match-define (list input-info output1-info output2-info other-info) res-info)
   (define output1-ordered (order output1-info))
   (define output2-ordered (order output2-info))
