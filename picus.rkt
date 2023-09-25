@@ -71,7 +71,7 @@
  [("--verbose")
   verbose
   ["verbose level (default: 0)"
-   "  0: not verbose; output algorithm computation minimally"
+   "  0: not verbose; only display the final output"
    "  1: output algorithm computation, but display ... when the output is too large"
    "  2: output full algorithm computation"]
   (set-verbose! (match verbose
@@ -154,16 +154,16 @@
     [arg-r1cs (values arg-r1cs (r1cs:read-r1cs arg-r1cs))]
     [else (compile+patch-circom arg-circom arg-patch?)]))
 
-(printf "# r1cs file: ~a\n" r1cs-path)
-(printf "# timeout: ~a\n" arg-timeout)
-(printf "# solver: ~a\n" arg-solver)
-(printf "# selector: ~a\n" arg-selector)
-(printf "# precondition: ~a\n" arg-precondition)
-(printf "# propagation on: ~a\n" arg-prop)
-(printf "# solver on: ~a\n" arg-slv)
-(printf "# smt: ~a\n" arg-smt)
-(printf "# weak: ~a\n" arg-weak)
-(printf "# cex-verbose: ~a\n" arg-cex-verbose)
+(vprintf "r1cs file: ~a\n" r1cs-path)
+(vprintf "timeout: ~a\n" arg-timeout)
+(vprintf "solver: ~a\n" arg-solver)
+(vprintf "selector: ~a\n" arg-selector)
+(vprintf "precondition: ~a\n" arg-precondition)
+(vprintf "propagation on: ~a\n" arg-prop)
+(vprintf "solver on: ~a\n" arg-slv)
+(vprintf "smt: ~a\n" arg-smt)
+(vprintf "weak: ~a\n" arg-weak)
+(vprintf "cex-verbose: ~a\n" arg-cex-verbose)
 
 ; =================================================
 ; ======== resolve solver specific methods ========
@@ -181,10 +181,10 @@
 ; ==================================
 (define nwires (r1cs:get-nwires r0))
 (define mconstraints (r1cs:get-mconstraints r0))
-(printf "# number of wires: ~a\n" nwires)
-(printf "# number of constraints: ~a\n" mconstraints)
-(printf "# field size (how many bytes): ~a\n" (r1cs:get-field-size r0))
-(printf "# prime number: ~a\n" (r1cs:get-prime-number r0))
+(vprintf "number of wires: ~a\n" nwires)
+(vprintf "number of constraints: ~a\n" mconstraints)
+(vprintf "field size (how many bytes): ~a\n" (r1cs:get-field-size r0))
+(vprintf "prime number: ~a\n" (r1cs:get-prime-number r0))
 (config:set-p! (r1cs:get-prime-number r0))
 
 ; categorize signals
@@ -193,31 +193,31 @@
 (define output-list (r1cs:r1cs-outputs r0))
 (define output-set (list->set output-list))
 (define target-set (if arg-weak (list->set output-list) (list->set (range nwires))))
-(printf "# inputs: ~a.\n" input-list)
-(printf "# outputs: ~a.\n" output-list)
-(printf "# targets: ~a.\n" target-set)
+(vprintf "inputs: ~e.\n" input-list)
+(vprintf "outputs: ~e.\n" output-list)
+(vprintf "targets: ~e.\n" target-set)
 
 ; parse original r1cs
-(printf "# parsing original r1cs...\n")
+(vprintf "parsing original r1cs...\n")
 ;; invariant: (length varlist) = nwires
 (define-values (varlist opts defs cnsts) (parse-r1cs r0 '())) ; interpret the constraint system
-(vprintf "# varlist: ~e.\n" varlist)
+(vprintf "varlist: ~e.\n" varlist)
 ; parse alternative r1cs
 (define alt-varlist
   (for/list ([i (in-range nwires)] [var (in-list varlist)])
     (if (not (utils:contains? input-list i))
         (format "y~a" i)
         var)))
-(vprintf "# alt-varlist ~e.\n" alt-varlist)
-(printf "# parsing alternative r1cs...\n")
+(vprintf "alt-varlist ~e.\n" alt-varlist)
+(vprintf "parsing alternative r1cs...\n")
 (define-values (_ __ alt-defs alt-cnsts) (parse-r1cs r0 alt-varlist))
 
-(printf "# configuring precondition...\n")
+(vprintf "configuring precondition...\n")
 (define-values (unique-set precondition)
   (if (null? arg-precondition)
       (values (set) '())
       (pre:read-precondition arg-precondition))) ; read!
-(printf "# unique: ~a.\n" unique-set)
+(vprintf "unique: ~a.\n" unique-set)
 
 ; ============================
 ; ======== main solve ========
@@ -252,29 +252,27 @@
    arg-selector arg-prop arg-slv arg-timeout arg-smt arg-cex-verbose path-sym
    solve interpret-r1cs
    optimize-r1cs-p0 expand-r1cs normalize-r1cs optimize-r1cs-p1))
-(printf "# final unknown set ~a.\n" res-us)
-(if arg-weak
-    (printf "# weak uniqueness: ~a.\n" res)
-    (printf "# strong uniqueness: ~a.\n" res))
+(vprintf "final unknown set ~e.\n" res-us)
+(printf "~a uniqueness: ~a.\n" (if arg-weak "weak" "strong") res)
 
 ;; format-cex :: string?, (listof (pairof string? any/c)), #:diff (listof (pairof string? any/c)) -> void?
 (define (format-cex heading info #:diff [diff info])
-  (printf "  # ~a:\n" heading)
+  (printf "  ~a:\n" heading)
   (for ([entry (in-list info)] [diff-entry (in-list diff)])
     (printf (cond
               [(equal? (cdr entry) (cdr diff-entry))
-               "    # ~a: ~a\n"]
-              [else (highlight "    # ~a: ~a\n")])
+               "    ~a: ~a\n"]
+              [else (highlight "    ~a: ~a\n")])
             (car entry) (cdr entry)))
   (when (empty? info)
-    (printf "    # no ~a\n" heading)))
+    (printf "    no ~a\n" heading)))
 
 ;; order :: hash? -> (listof (pairof string? any/c))
 (define (order info)
   (sort (hash->list info) string<? #:key car))
 
 (when (equal? 'unsafe res)
-  (printf "# ~a is underconstrained. Below is a counterexample:\n" r1cs-path)
+  (printf "~a is underconstrained. Below is a counterexample:\n" r1cs-path)
   (match-define (list input-info output1-info output2-info other-info) res-info)
   (define output1-ordered (order output1-info))
   (define output2-ordered (order output2-info))

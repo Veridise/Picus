@@ -78,9 +78,9 @@
       [(or 'safe 'unsafe 'unknown)
        (check-regexp-match
         (match expected
-          ['safe #px"(?m:^# weak uniqueness: safe\\.$)"]
-          ['unsafe #px"(?m:^# weak uniqueness: unsafe\\.$)"]
-          ['unknown #px"(?m:^# weak uniqueness: unknown\\.$)"])
+          ['safe #px"(?m:^weak uniqueness: safe\\.$)"]
+          ['unsafe #px"(?m:^weak uniqueness: unsafe\\.$)"]
+          ['unknown #px"(?m:^weak uniqueness: unknown\\.$)"])
         (get-output-string string-port))]
       ['timeout
        (check-false timing-info)])

@@ -30,7 +30,7 @@ jobs:
         shell: bash # this ensures that pipefail is set
       - name: test expected result
         run: |
-          grep "^# weak uniqueness: unsafe\.$" ./result.out
+          grep "^weak uniqueness: unsafe\.$" ./result.out
 
   test-circom-mode:
     runs-on: ubuntu-latest
@@ -52,7 +52,7 @@ jobs:
         shell: bash # this ensures that pipefail is set
       - name: test expected result
         run: |
-          grep "^# weak uniqueness: unsafe\.$" ./result.out
+          grep "^weak uniqueness: unsafe\.$" ./result.out
 
   # run the full test for cvc5
   test-solve-with-cvc5:

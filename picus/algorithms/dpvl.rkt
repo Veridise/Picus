@@ -88,7 +88,7 @@
 ;   - (values 'sat info): the given query has a counter-example (not verified)
 ;   - (values 'skip info): the given query times out (small step)
 (define (dpvl-solve ks us sid)
-  (printf "  # checking: (~a ~a), " (vector-ref :varvec sid) (vector-ref :alt-varvec sid))
+  (vprintf "  checking: (~a ~a), " (vector-ref :varvec sid) (vector-ref :alt-varvec sid))
   ; assemble commands
   (define known-cmds
     (r1cs:rcmds
@@ -121,32 +121,32 @@
   (define-values (res smt-path) (:solve final-str :arg-timeout #:output-smt? #f))
   (define solved? (cond
                     [(equal? 'unsat (car res))
-                     (printf "verified.\n")
+                     (vprintf "verified.\n")
                      ; verified, safe
                      'verified]
                     [(equal? 'sat (car res))
                      (cond
                        ; skipping query, whatever sat is good
                        [:skip-query?
-                        (printf "sat (no query).\n")
+                        (vprintf "sat (no query).\n")
                         'sat]
                        ; not skipping query, need to tell variable
                        ; (important) here if the current signal is not a target, it's ok to see a sat
                        [(set-member? :target-set sid)
                         ; the current signal is a target, now there's a counter-example, unsafe
                         ; in pp, this counter-example is valid
-                        (printf "sat.\n")
+                        (vprintf "sat.\n")
                         'sat]
                        [else
                         ; not a target, fine, just skip
-                        (printf "sat but not a target.\n")
+                        (vprintf "sat but not a target.\n")
                         'skip])]
                     [else
-                     (printf "skip.\n")
+                     (vprintf "skip.\n")
                      ; possibly timeout in small step, result is unknown
                      'skip]))
   (when :arg-smt
-    (printf "    # smt path: ~a\n" smt-path))
+    (vprintf "    smt path: ~a\n" smt-path))
   (values solved? (cdr res)))
 
 ; select and solve
@@ -400,14 +400,14 @@
       i))
 
 
-  (vprintf "# initial known-set ~e\n" known-set)
-  (vprintf "# initial unknown-set ~e\n" unknown-set)
+  (vprintf "initial known-set ~e\n" known-set)
+  (vprintf "initial unknown-set ~e\n" unknown-set)
   
   ; (precondition related) incorporate unique-set if unique-set is not an empty set
   (set! known-set (set-union known-set unique-set))
   (set! unknown-set (set-subtract unknown-set unique-set))
-  (vprintf "# refined known-set: ~e\n" known-set)
-  (vprintf "# refined unknown-set: ~e\n" unknown-set)
+  (vprintf "refined known-set: ~e\n" known-set)
+  (vprintf "refined unknown-set: ~e\n" unknown-set)
 
   ; ==== branch out: skip optimization phase 0 and apply expand & normalize ====
   ; computing rcdmap need no ab0 lemma from optimization phase 0
