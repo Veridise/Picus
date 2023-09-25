@@ -81,7 +81,8 @@
           ['safe #px"(?m:^weak uniqueness: safe\\.$)"]
           ['unsafe #px"(?m:^weak uniqueness: unsafe\\.$)"]
           ['unknown #px"(?m:^weak uniqueness: unknown\\.$)"])
-        (get-output-string string-port))]
+        (get-output-string string-port))
+       (check-not-false timing-info)]
       ['timeout
        (check-false timing-info)])
     (flush))
