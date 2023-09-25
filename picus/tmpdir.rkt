@@ -12,4 +12,5 @@
   tmpdir)
 
 (define (clean-tmpdir!)
-  (delete-directory/files tmpdir #:must-exist? #f))
+  (when tmpdir
+    (delete-directory/files tmpdir)))
