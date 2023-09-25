@@ -5,12 +5,13 @@
 ; (note) this lemma currently only applies to {a,b}={0,1}, add support for other values if necessary later
 ; (note) this lemma requires ab0 optimization first, applies on p1cnsts
 (require (prefix-in tokamak: "../../tokamak.rkt")
-         (prefix-in r1cs: "../../r1cs/r1cs-grammar.rkt"))
+         (prefix-in r1cs: "../../r1cs/r1cs-grammar.rkt")
+         "../../verbose.rkt")
 (provide apply-lemma)
 
 ; recursively apply linear lemma
 (define (apply-lemma ks us p1cnsts range-vec)
-    (printf "  # propagation (binary01 lemma): ")
+    (vprintf "  propagation (binary01 lemma): ")
 
     (process p1cnsts range-vec)
 
@@ -32,10 +33,8 @@
           [_ (values ks us)])))
     (let ([s0 (set-subtract new-ks ks)])
         (if (set-empty? s0)
-            (printf "none.\n")
-            (printf "~a added.\n" s0)
-        )
-    )
+            (vprintf "none.\n")
+            (vprintf "~e added.\n" s0)))
     ; apply once is enough, return
     (values new-ks new-us)
 )

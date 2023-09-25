@@ -51,7 +51,7 @@
 
 ; recursively apply linear lemma
 (define (apply-lemma linear-clauses ks us)
-  (printf "  # propagation (linear lemma):\n")
+  (vprintf "  propagation (linear lemma):\n")
   ;; add a dummy element -1 so that working-set is not initially empty
   ;; (since being empty is the condition for termination)
   (let loop ([linear-clauses linear-clauses]
@@ -90,6 +90,6 @@
                    #:when (set-empty? nonlinear-vars))
            (set-first deducible-vars)))
 
-       (vprintf "    # ~e added.\n" Δinferred)
+       (vprintf "    ~e added.\n" Δinferred)
 
        (loop new-linear-clauses (set-union inferred Δinferred) Δinferred)])))

@@ -6,24 +6,20 @@
 ; (fixme) one-take implementation, you need a big fix on this
 ; (fixme) this impelements a special case where b = 0
 (require math
-    (prefix-in config: "../../config.rkt")
-    (prefix-in tokamak: "../../tokamak.rkt")
-    (prefix-in r1cs: "../../r1cs/r1cs-grammar.rkt")
-)
-(provide (rename-out
-    [apply-lemma apply-lemma]
-))
+         (prefix-in config: "../../config.rkt")
+         (prefix-in tokamak: "../../tokamak.rkt")
+         (prefix-in r1cs: "../../r1cs/r1cs-grammar.rkt")
+         "../../verbose.rkt")
+(provide apply-lemma)
 
 ; recursively apply linear lemma
 (define (apply-lemma ks us p1cnsts range-vec)
-    (printf "  # propagation (bim lemma): ")
+    (vprintf "  propagation (bim lemma): ")
     (define-values (tmp-ks tmp-us) (process ks us p1cnsts range-vec))
     (let ([s0 (set-subtract tmp-ks ks)])
         (if (set-empty? s0)
-            (printf "none.\n")
-            (printf "~a added.\n" s0)
-        )
-    )
+            (vprintf "none.\n")
+            (vprintf "~e added.\n" s0)))
 
     ; apply once is enough, return
     (values tmp-ks tmp-us)

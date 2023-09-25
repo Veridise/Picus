@@ -3,25 +3,20 @@
 ;   if z = 2^0 * x0 + 2^1 * x1 + ... + 2^n * xn, and x0, x1, ..., xn are all in {0,1}
 ;   then if z is uniquely determined, so as x0, x1, ..., xn
 ; this requires p1cnsts
-(require
-    (prefix-in config: "../../config.rkt")
-    (prefix-in tokamak: "../../tokamak.rkt")
-    (prefix-in r1cs: "../../r1cs/r1cs-grammar.rkt")
-)
-(provide (rename-out
-    [apply-lemma apply-lemma]
-))
+(require (prefix-in config: "../../config.rkt")
+         (prefix-in tokamak: "../../tokamak.rkt")
+         (prefix-in r1cs: "../../r1cs/r1cs-grammar.rkt")
+         "../../verbose.rkt")
+(provide apply-lemma)
 
 ; recursively apply linear lemma
 (define (apply-lemma ks us p1cnsts range-vec)
-    (printf "  # propagation (basis2 lemma): ")
+    (vprintf "  propagation (basis2 lemma): ")
     (define-values (tmp-ks tmp-us) (process ks us p1cnsts range-vec))
     (let ([s0 (set-subtract tmp-ks ks)])
         (if (set-empty? s0)
-            (printf "none.\n")
-            (printf "~a added.\n" s0)
-        )
-    )
+            (vprintf "none.\n")
+            (vprintf "~e added.\n" s0)))
 
     ; apply once is enough, return
     (values tmp-ks tmp-us)
