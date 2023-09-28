@@ -71,7 +71,7 @@ This compiles all the "circomlib-utils" benchmarks, and won't throw any error if
 Then test some benchmarks, e.g., the `Decoder` benchmark, run:
 
 ```bash
-racket ./picus.rkt --solver cvc5 --timeout 5000 --weak --r1cs ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.r1cs
+racket ./picus.rkt --solver cvc5 --timeout 5000 --r1cs ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.r1cs
 ```
 
 A successful run will output logging info ***similar*** to the following (note that actual counter-example could be different due to potential stochastic search strategy in dependant libraries):
@@ -153,8 +153,16 @@ usage: picus.rkt [ <option> ... ]
 
 <option> is one of
 
-  --r1cs <p-r1cs>
-     path to target r1cs
+/ --r1cs <p-r1cs>
+|    path to target r1cs
+| --circom <p-circom>
+\    path to target circom (need circom compiler in PATH)
+  --noclean
+     do not clean up temporary files (default: false)
+  --patch-circom
+     patch circom file to add public inputs (only applicable for --circom, default: false)
+  --opt-level <p-opt-level>
+     optimization level for circom compilation (only applicable for --circom, default: 0)
   --timeout <p-timeout>
      timeout for every small query (default: 5000ms)
   --solver <p-solver>
@@ -165,12 +173,22 @@ usage: picus.rkt [ <option> ... ]
      path to precondition json (default: null)
   --noprop
      disable propagation (default: false / propagation on)
+  --nosolve
+     disable solver phase (default: false / solver on)
   --smt
      show path to generated smt files (default: false)
-  --weak
-     only check weak safety, not strong safety  (default: false)
-  --map
-     map the r1cs signals of model to its circom variable (default: true)
+  --strong
+     check for strong safety (default: false)
+  --verbose <verbose>
+     verbose level (default: 0)
+       0: not verbose; only display the final output
+       1: output algorithm computation, but display ... when the output is too large
+       2: output full algorithm computation
+  --cex-verbose <cex-verbose>
+     counterexample verbose level (default: 0)
+       0: not verbose; only output with circom variable format
+       1: output with circom variable format when applicable, and r1cs signal format otherwise
+       2: output with r1cs signal format
   --help, -h
      Show this help
   --

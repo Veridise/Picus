@@ -28,7 +28,7 @@
 (define arg-prop #t)
 (define arg-slv #t)
 (define arg-smt #f)
-(define arg-weak #f)
+(define arg-strong #f)
 (define arg-cex-verbose 0)
 (command-line
  #:once-any
@@ -66,8 +66,8 @@
                 (set! arg-slv #f)]
  [("--smt") "show path to generated smt files (default: false)"
             (set! arg-smt #t)]
- [("--weak") "only check weak safety, not strong safety  (default: false)"
-             (set! arg-weak #t)]
+ [("--strong") "check for strong safety (default: false)"
+               (set! arg-strong #t)]
  [("--verbose")
   verbose
   ["verbose level (default: 0)"
@@ -162,7 +162,7 @@
 (vprintf "propagation on: ~a\n" arg-prop)
 (vprintf "solver on: ~a\n" arg-slv)
 (vprintf "smt: ~a\n" arg-smt)
-(vprintf "weak: ~a\n" arg-weak)
+(vprintf "strong: ~a\n" arg-strong)
 (vprintf "cex-verbose: ~a\n" arg-cex-verbose)
 
 ; =================================================
@@ -192,7 +192,7 @@
 (define input-set (list->set input-list))
 (define output-list (r1cs:r1cs-outputs r0))
 (define output-set (list->set output-list))
-(define target-set (if arg-weak (list->set output-list) (list->set (range nwires))))
+(define target-set (if arg-strong (list->set (range nwires)) (list->set output-list)))
 (vprintf "inputs: ~e.\n" input-list)
 (vprintf "outputs: ~e.\n" output-list)
 (vprintf "targets: ~e.\n" target-set)
@@ -253,7 +253,7 @@
    solve interpret-r1cs
    optimize-r1cs-p0 expand-r1cs normalize-r1cs optimize-r1cs-p1))
 (vprintf "final unknown set ~e.\n" res-us)
-(printf "~a uniqueness: ~a.\n" (if arg-weak "weak" "strong") res)
+(printf "~a uniqueness: ~a.\n" (if arg-strong "strong" "weak") res)
 
 ;; format-cex :: string?, (listof (pairof string? any/c)), #:diff (listof (pairof string? any/c)) -> void?
 (define (format-cex heading info #:diff [diff info])

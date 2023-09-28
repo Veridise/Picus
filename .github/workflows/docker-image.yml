@@ -24,8 +24,7 @@ jobs:
         run: |
           racket ./picus.rkt \
               --solver z3 \
-              --r1cs ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.r1cs \
-              --weak | \
+              --r1cs ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.r1cs | \
             tee result.out
         shell: bash # this ensures that pipefail is set
       - name: test expected result
@@ -46,8 +45,7 @@ jobs:
         run: |
           racket ./picus.rkt \
               --solver z3 \
-              --circom ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.circom \
-              --weak | \
+              --circom ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.circom | \
             tee result.out
         shell: bash # this ensures that pipefail is set
       - name: test expected result
