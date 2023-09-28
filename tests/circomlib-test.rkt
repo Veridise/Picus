@@ -1,19 +1,24 @@
 #lang racket/base
 
 (module+ test
-  (require racket/system
-           racket/cmdline
-           racket/string
-           racket/file
+  (require racket/cmdline
            racket/runtime-path
            racket/port
            racket/format
            racket/match
-           rackunit
-           "../picus/global-inputs.rkt")
+           rackunit)
+
+  ;; invariant: *thread-id* is false iff *num-threads* is false
+  (define *thread-id* #f)
+  (define *num-threads* #f)
 
   (define filenames
     (command-line
+     #:once-each
+     [("--parallel") thread-id num-threads
+                     "Run the (thread-id)th batch of num-threads workload"
+                     (set! *thread-id* (string->number thread-id))
+                     (set! *num-threads* (string->number num-threads))]
      #:args filenames
      filenames))
 
@@ -86,10 +91,15 @@
        (check-false timing-info)])
     (flush))
 
+  (define *counter* 0)
   (define-check (check-result run-conf expected)
     (match-define (run-config filename _) run-conf)
     (when (or (member filename filenames) (null? filenames))
-      (check:core run-conf expected)))
+      (cond
+        [(or (not *num-threads*) (= (modulo *counter* *num-threads*) *thread-id*))
+         (check:core run-conf expected)]
+        [else (printf "skipping a run for other threads\n")])
+      (set! *counter* (add1 *counter*))))
 
   (check-result (make-run-config "AND@gates") 'safe)
   (check-result (make-run-config "BabyAdd@babyjub") 'unknown)
