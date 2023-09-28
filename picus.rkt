@@ -22,7 +22,7 @@
 (define arg-opt-level #f)
 (define arg-clean? #t)
 (define arg-timeout 5000)
-(define arg-solver "z3")
+(define arg-solver "cvc5")
 (define arg-selector "counter")
 (define arg-precondition null)
 (define arg-prop #t)
@@ -52,7 +52,7 @@
                           [_ (tokamak:exit "unrecognized optimization level: ~a" p-opt-level)]))]
  [("--timeout") p-timeout "timeout for every small query (default: 5000ms)"
                 (set! arg-timeout (string->number p-timeout))]
- [("--solver") p-solver "solver to use: z3 | cvc4 | cvc5 (default: z3)"
+ [("--solver") p-solver "solver to use: z3 | cvc4 | cvc5 (default: cvc5)"
                (cond
                  [(set-member? (set "z3" "cvc5" "cvc4") p-solver) (set! arg-solver p-solver)]
                  [else (tokamak:exit "solver needs to be either z3 or cvc5")])]
