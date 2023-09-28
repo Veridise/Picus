@@ -45,7 +45,6 @@
                    [current-command-line-arguments
                     (vector "--solver" "cvc5"
                             "--timeout" "5000"
-                            "--weak"
                             "--verbose" "1"
                             "--circom" (~a (build-path
                                             benchmark-dir

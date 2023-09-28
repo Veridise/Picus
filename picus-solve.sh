@@ -11,4 +11,4 @@ otime=600
 solver=cvc5
 
 echo "# solving: ${fp}"
-timeout ${otime} racket ./picus.rkt --timeout 5000 --solver ${solver} --weak --r1cs ${fp} --map
+timeout ${otime} racket ./picus.rkt --timeout 5000 --solver ${solver} --r1cs ${fp} --map
