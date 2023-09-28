@@ -53,7 +53,10 @@ jobs:
           grep "^weak uniqueness: unsafe\.$" ./result.out
 
   # run the full test for cvc5
-  test-solve-with-cvc5:
+  main-test:
+    strategy:
+      matrix:
+        id: [0, 1, 2, 3]
     runs-on: ubuntu-latest
     container: 
       image: veridise/picus:git-latest
@@ -64,7 +67,7 @@ jobs:
       - name: linking circom
         run: ln -s /root/.cargo/bin/circom /usr/bin/circom
       - name: run picus with cvc5, using v3
-        run: raco test ./tests/circomlib-test.rkt
+        run: raco test ++args "--parallel ${{ matrix.id }} 4" ./tests/circomlib-test.rkt
 
   performance-test:
     runs-on: ubuntu-latest
@@ -78,7 +81,7 @@ jobs:
         run: raco test ./tests/performance-test.rkt
 
   publish-docker:
-    needs: [test-solve-with-z3, test-solve-with-cvc5, performance-test]
+    needs: [test-solve-with-z3, test-circom-mode, main-test, performance-test]
     name: "Publish Docker image to DockerHub"
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
