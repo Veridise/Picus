@@ -8,7 +8,14 @@ on:
   workflow_dispatch:
 
 jobs:
-  test-solve-with-z3:
+  configuration-test:
+    strategy:
+      matrix:
+        param:
+          - --solver cvc5 --r1cs ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.r1cs
+          - --solver z3   --r1cs ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.r1cs
+          - --solver cvc5 --circom ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.circom --opt-level 0
+          - --solver cvc5 --circom ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.circom --opt-level 2 --patch-circom
     runs-on: ubuntu-latest
     container: 
       image: veridise/picus:git-latest
@@ -20,39 +27,15 @@ jobs:
         run: ln -s /root/.cargo/bin/circom /usr/bin/circom
       - name: compile circomlib
         run: bash ./scripts/prepare-circomlib.sh
-      - name: run picus with z3, using v3
+      - name: run picus with param ${{ matrix.param }}
         run: |
-          racket ./picus.rkt \
-              --solver z3 \
-              --r1cs ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.r1cs | \
-            tee result.out
+          racket ./picus.rkt ${{ matrix.param }} | tee result.out
         shell: bash # this ensures that pipefail is set
       - name: test expected result
         run: |
           grep "^weak uniqueness: unsafe\.$" ./result.out
 
-  test-circom-mode:
-    runs-on: ubuntu-latest
-    container:
-      image: veridise/picus:git-latest
-    env:
-      PLTADDONDIR: /root/.local/share/racket/
-    steps:
-      - uses: actions/checkout@v1
-      - name: linking circom
-        run: ln -s /root/.cargo/bin/circom /usr/bin/circom
-      - name: run picus with z3, using v3
-        run: |
-          racket ./picus.rkt \
-              --solver z3 \
-              --circom ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.circom | \
-            tee result.out
-        shell: bash # this ensures that pipefail is set
-      - name: test expected result
-        run: |
-          grep "^weak uniqueness: unsafe\.$" ./result.out
-
-  # run the full test for cvc5
+  # run the full test with cvc5
   main-test:
     strategy:
       matrix:
@@ -81,7 +64,7 @@ jobs:
         run: raco test ./tests/performance-test.rkt
 
   publish-docker:
-    needs: [test-solve-with-z3, test-circom-mode, main-test, performance-test]
+    needs: [configuration-test, main-test, performance-test]
     name: "Publish Docker image to DockerHub"
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
