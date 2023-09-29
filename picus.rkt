@@ -96,10 +96,23 @@
 (unless (implies arg-patch? arg-circom)
   (tokamak:exit "--patch-circom only applicable for --circom"))
 
+(define (callsys cmd . args)
+  (match (get-verbose)
+    [0
+     (define outp (open-output-string))
+     (define ret-status
+       (parameterize ([current-output-port outp]
+                      [current-error-port outp])
+         (apply system* cmd args)))
+     (unless ret-status
+       (display (get-output-string outp)))
+     ret-status]
+    [_ (apply system* cmd args)]))
+
 ;; compile-circom :: path? -> path?
 ;; compile circom file to r1cs file
 (define (compile-circom circom-path)
-  (unless (system* (find-executable-path "circom")
+  (unless (callsys (find-executable-path "circom")
                    "-o"
                    (get-tmpdir)
                    "--r1cs"

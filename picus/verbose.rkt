@@ -1,12 +1,15 @@
 #lang racket/base
 
 (provide vprintf
+         get-verbose
          set-verbose!)
 
 (require racket/string
          racket/match)
 
 (define verbose 0)
+(define (get-verbose)
+  verbose)
 (define (set-verbose! v)
   (set! verbose v))
 
