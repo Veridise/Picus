@@ -12,10 +12,10 @@ jobs:
     strategy:
       matrix:
         param:
-          - --solver cvc5 --r1cs ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.r1cs
-          - --solver z3   --r1cs ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.r1cs
-          - --solver cvc5 --circom ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.circom --opt-level 0
-          - --solver cvc5 --circom ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.circom --opt-level 2 --patch-circom
+          - --solver cvc5                              ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.r1cs
+          - --solver z3                                ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.r1cs
+          - --solver cvc5 --opt-level 0                ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.circom
+          - --solver cvc5 --opt-level 2 --patch-circom ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.circom
     runs-on: ubuntu-latest
     container: 
       image: veridise/picus:git-latest
@@ -29,11 +29,16 @@ jobs:
         run: bash ./scripts/prepare-circomlib.sh
       - name: run picus with param ${{ matrix.param }}
         run: |
+          set +e
           racket ./picus.rkt ${{ matrix.param }} | tee result.out
+          code=$?
+          if [ $code -ne 0 ] && [ $code -ne 9 ]; then
+            exit $code
+          fi
         shell: bash # this ensures that pipefail is set
       - name: test expected result
         run: |
-          grep "^weak uniqueness: unsafe\.$" ./result.out
+          grep "^The circuit is underconstrained$" ./result.out
 
   # run the full test with cvc5
   main-test:

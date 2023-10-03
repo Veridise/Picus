@@ -19,20 +19,18 @@
 ; its p1cnsts form is different, see process below
 ; (fixme) this implements an inefficient version, could be improved
 
-(require (prefix-in config: "../../config.rkt")
-         (prefix-in tokamak: "../../tokamak.rkt")
-         (prefix-in r1cs: "../../r1cs/r1cs-grammar.rkt")
-         "../../verbose.rkt")
+(require (prefix-in r1cs: "../../r1cs/r1cs-grammar.rkt")
+         "../../logging.rkt")
 (provide apply-lemma)
 
 ; recursively apply linear lemma
 (define (apply-lemma ks us p1cnsts range-vec)
-    (vprintf "  propagation (aboz lemma): ")
+    (picus:log-progress "[aboz lemma] starting propagation")
     (define-values (tmp-ks tmp-us) (process ks us p1cnsts range-vec))
     (let ([s0 (set-subtract tmp-ks ks)])
         (if (set-empty? s0)
-            (vprintf "none.\n")
-            (vprintf "~e added.\n" s0)))
+            (picus:log-debug "[aboz lemma] nothing added")
+            (picus:log-debug "[aboz lemma] adding ~e" s0)))
 
     ; apply once is enough, return
     (values tmp-ks tmp-us)

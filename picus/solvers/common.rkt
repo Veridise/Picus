@@ -6,22 +6,20 @@
          racket/match
          racket/engine
          racket/file
-         (prefix-in tokamak: "../tokamak.rkt")
          (prefix-in config: "../config.rkt")
+         "../logging.rkt"
+         "../exit.rkt"
          "../tmpdir.rkt")
 
 (define ((make-solve #:executable executable
                      #:options [options '()])
-         smt-str timeout #:verbose? [verbose? #f] #:output-smt? [output-smt? #f])
+         smt-str timeout #:verbose? [verbose? #f])
   (define temp-path (make-temporary-file "picus~a.smt2" #:base-dir (get-tmpdir)))
   (with-output-to-file temp-path
     #:exists 'replace
     (λ () (display smt-str)))
-  (when (or verbose? output-smt?)
-    (printf "(written to: ~a)\n" temp-path))
-
-  (when verbose?
-    (printf "# solving...\n"))
+  (picus:log-debug "[solver] smt path: ~a" temp-path)
+  (picus:log-progress "[solver] solving...")
   (define-values (sp out in err)
     ; (note) use `apply` to expand the last argument
     ; (apply subprocess #f #f #f (find-executable-path "cvc5") (list temp-path))
@@ -53,14 +51,13 @@
      (when verbose?
        (printf "# stdout:\n~a\n" out-str)
        (printf "# stderr:\n~a\n" err-str))
-     (values (cond
-               [(non-empty-string? err-str) (cons 'error err-str)] ; something wrong, not solved
-               [(string-prefix? out-str "unsat") (cons 'unsat out-str)]
-               [(string-prefix? out-str "sat") (cons 'sat (parse-model out-str))]
-               [(string-prefix? out-str "unknown") (cons 'unknown out-str)]
-               [else (cons 'else out-str)])
-             temp-path)]
-    [else (values (cons 'timeout "") temp-path)]))
+     (cond
+       [(non-empty-string? err-str) (cons 'error err-str)] ; something wrong, not solved
+       [(string-prefix? out-str "unsat") (cons 'unsat out-str)]
+       [(string-prefix? out-str "sat") (cons 'sat (parse-model out-str))]
+       [(string-prefix? out-str "unknown") (cons 'unknown out-str)]
+       [else (cons 'else out-str)])]
+    [else (cons 'timeout "")]))
 
 ; example cvc5 string:
 ; sat
@@ -171,6 +168,6 @@
                   (if (< val 0)
                       (+ config:p val) ; remap to field
                       val))]
-      [_ (tokamak:exit "model parsing error, check: ~a" binding)]))
+      [_ (picus:tool-error "model parsing error, check: ~a" binding)]))
   ; return the model
   model)

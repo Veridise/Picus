@@ -4,14 +4,14 @@
 ; this requires p1cnsts
 ; (note) this lemma currently only applies to {a,b}={0,1}, add support for other values if necessary later
 ; (note) this lemma requires ab0 optimization first, applies on p1cnsts
-(require (prefix-in tokamak: "../../tokamak.rkt")
-         (prefix-in r1cs: "../../r1cs/r1cs-grammar.rkt")
-         "../../verbose.rkt")
+(require (prefix-in r1cs: "../../r1cs/r1cs-grammar.rkt")
+         "../../logging.rkt"
+         "../../exit.rkt")
 (provide apply-lemma)
 
 ; recursively apply linear lemma
 (define (apply-lemma ks us p1cnsts range-vec)
-    (vprintf "  propagation (binary01 lemma): ")
+    (picus:log-progress "[binary01 lemma] starting propagation")
 
     (process p1cnsts range-vec)
 
@@ -24,7 +24,7 @@
                  #:when (set? rng))
         (match (set-count rng)
           [0
-           (tokamak:exit "range-vec has 0 candidate values, got ~a for signal ~a" rng sid)]
+           (picus:tool-error "[binary01 lemma] range-vec has 0 candidate values, got ~a for signal ~a" rng sid)]
           ; (fixme) is this valid?
           [1
            ; good, this is unique
@@ -33,8 +33,8 @@
           [_ (values ks us)])))
     (let ([s0 (set-subtract new-ks ks)])
         (if (set-empty? s0)
-            (vprintf "none.\n")
-            (vprintf "~e added.\n" s0)))
+            (picus:log-debug "[binary01 lemma] nothing added")
+            (picus:log-debug "[binary01 lemma] adding ~e" s0)))
     ; apply once is enough, return
     (values new-ks new-us)
 )
@@ -49,7 +49,7 @@
             ; a set, get interssection
             (vector-set! range-vec sid (set-intersect (vector-ref range-vec sid) rng))
         ]
-        [else (tokamak:exit "unsupported range-vec value, got: ~a\n" (vector-ref range-vec sid))]
+        [else (picus:tool-error "unsupported range-vec value, got: ~a\n" (vector-ref range-vec sid))]
     )
 )
 

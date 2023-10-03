@@ -4,7 +4,7 @@
 ; note that this lemma doesn't apply to the following:
 ;   c * x0 * x1 = (unique), and c * x0 != 0
 (require (prefix-in r1cs: "../../r1cs/r1cs-grammar.rkt")
-         "../../verbose.rkt")
+         "../../logging.rkt")
 (provide compute-linear-clauses
          compute-weight-map
          apply-lemma)
@@ -51,7 +51,7 @@
 
 ; recursively apply linear lemma
 (define (apply-lemma linear-clauses ks us)
-  (vprintf "  propagation (linear lemma):\n")
+  (picus:log-progress "[linear lemma] starting propagation")
   ;; add a dummy element -1 so that working-set is not initially empty
   ;; (since being empty is the condition for termination)
   (let loop ([linear-clauses linear-clauses]
@@ -90,6 +90,6 @@
                    #:when (set-empty? nonlinear-vars))
            (set-first deducible-vars)))
 
-       (vprintf "    ~e added.\n" Δinferred)
+       (picus:log-debug "[linear lemma] adding ~e" Δinferred)
 
        (loop new-linear-clauses (set-union inferred Δinferred) Δinferred)])))
