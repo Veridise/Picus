@@ -21,7 +21,9 @@ RUN set -x && \
         gcc make cmake ninja-build \
         antlr4 \
         libgmp-dev \
-        software-properties-common gpg-agent
+        software-properties-common gpg-agent \
+        jq \
+        time
 
 # racket and rosette and other racket packages
 ARG DEBIAN_FRONTEND=noninteractive
