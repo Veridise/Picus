@@ -52,7 +52,7 @@ jobs:
       - name: run picus with cvc5, using v3
         run: raco test ++args "--parallel ${{ matrix.id }} 4" ./tests/circomlib-test.rkt
 
-  performance-test:
+  misc-test:
     runs-on: ubuntu-latest
     container:
       image: veridise/picus:git-latest
@@ -61,10 +61,12 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - name: run tests
-        run: raco test ./tests/performance-test.rkt
+        run: |
+          raco test ./tests/performance-test.rkt
+          raco test ./tests/framework-test.rkt
 
   publish-docker:
-    needs: [configuration-test, main-test, performance-test]
+    needs: [configuration-test, main-test, misc-test]
     name: "Publish Docker image to DockerHub"
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
