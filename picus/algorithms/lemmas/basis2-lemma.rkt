@@ -4,19 +4,19 @@
 ;   then if z is uniquely determined, so as x0, x1, ..., xn
 ; this requires p1cnsts
 (require (prefix-in config: "../../config.rkt")
-         (prefix-in tokamak: "../../tokamak.rkt")
          (prefix-in r1cs: "../../r1cs/r1cs-grammar.rkt")
-         "../../verbose.rkt")
+         "../../logging.rkt"
+         "../../exit.rkt")
 (provide apply-lemma)
 
 ; recursively apply linear lemma
 (define (apply-lemma ks us p1cnsts range-vec)
-    (vprintf "  propagation (basis2 lemma): ")
+    (picus:log-progress "[basis2 lemma] starting propagation")
     (define-values (tmp-ks tmp-us) (process ks us p1cnsts range-vec))
     (let ([s0 (set-subtract tmp-ks ks)])
         (if (set-empty? s0)
-            (vprintf "none.\n")
-            (vprintf "~e added.\n" s0)))
+            (picus:log-debug "[basis2 lemma] nothing added")
+            (picus:log-debug "[basis2 lemma] adding ~e" s0)))
 
     ; apply once is enough, return
     (values tmp-ks tmp-us)
@@ -141,7 +141,7 @@
             [(r1cs:rvar "ps2") (- config:p 2)]
             [(r1cs:rvar "ps4") (- config:p 4)]
             [(r1cs:rint z) z]
-            [_ (tokamak:exit "unsupported coefficient, got: ~a" v)]
+            [_ (picus:tool-error "unsupported coefficient, got: ~a" v)]
         )
     ))
     (define coelist2 (for/list ([v vs])
@@ -150,7 +150,7 @@
             [(r1cs:rvar "ps2") (ffsub (- config:p 2))]
             [(r1cs:rvar "ps4") (ffsub (- config:p 4))]
             [(r1cs:rint z) (ffsub z)]
-            [_ (tokamak:exit "unsupported coefficient, got: ~a" v)]
+            [_ (picus:tool-error "unsupported coefficient, got: ~a" v)]
         )
     ))
     (define coeset (list->set coelist))

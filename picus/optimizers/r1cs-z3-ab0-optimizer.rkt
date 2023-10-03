@@ -3,8 +3,6 @@
 ; this implements the following lemma
 ;   A * B = 0 => A = 0 or B = 0
 (require
-    (prefix-in tokamak: "../tokamak.rkt")
-    (prefix-in utils: "../utils.rkt")
     (prefix-in config: "../config.rkt")
     (prefix-in r1cs: "../r1cs/r1cs-grammar.rkt")
 )

@@ -6,7 +6,9 @@
            racket/port
            racket/format
            racket/match
-           rackunit)
+           rackunit
+
+           "../picus/exit.rkt")
 
   ;; invariant: *thread-id* is false iff *num-threads* is false
   (define *thread-id* #f)
@@ -45,21 +47,28 @@
     (define pump-thd (thread (λ () (copy-port in orig-out string-port))))
 
     (define timing-info #f)
+    (define ret-code #f)
+
+    (struct exit-code (code) #:transparent)
 
     (parameterize ([current-namespace (make-base-namespace)]
                    [current-command-line-arguments
                     (vector "--solver" "cvc5"
                             "--timeout" "5000"
-                            "--verbose" "1"
-                            "--circom" (~a (build-path
-                                            benchmark-dir
-                                            (format "~a.circom" filename)))
-                            "--patch-circom")]
+                            "--patch-circom"
+                            (~a (build-path
+                                 benchmark-dir
+                                 (format "~a.circom" filename))))]
                    [current-output-port out])
+      (define (run-picus-thunk)
+        (set! ret-code
+              (with-handlers ([exit-code? exit-code-code])
+                (parameterize ([exit-handler (λ (code) (raise (exit-code code)))])
+                  (dynamic-require picus #f)))))
       (define main-thd
         (thread (λ ()
                   (match-define-values (_ cpu real gc)
-                    (time-apply (λ () (dynamic-require picus #f)) '()))
+                    (time-apply run-picus-thunk '()))
                   (set! timing-info (list cpu real gc)))))
       (match (sync/timeout/enable-break timeout main-thd)
         [#f
@@ -79,12 +88,17 @@
       [_ (printf "TIMEOUT\n")])
 
     (match expected
+      [(or 'safe 'unknown) (check-equal? ret-code exit-code:success)]
+      ['unsafe (check-equal? ret-code exit-code:issues)]
+      ['timeout (check-false ret-code)])
+
+    (match expected
       [(or 'safe 'unsafe 'unknown)
        (check-regexp-match
         (match expected
-          ['safe #px"(?m:^weak uniqueness: safe\\.$)"]
-          ['unsafe #px"(?m:^weak uniqueness: unsafe\\.$)"]
-          ['unknown #px"(?m:^weak uniqueness: unknown\\.$)"])
+          ['safe #px"(?m:^The circuit is properly constrained$)"]
+          ['unsafe #px"(?m:^The circuit is underconstrained$)"]
+          ['unknown #px"(?m:^Cannot determine whether the circuit is properly constrained$)"])
         (get-output-string string-port))
        (check-not-false timing-info)]
       ['timeout

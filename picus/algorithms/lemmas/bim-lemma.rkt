@@ -7,19 +7,19 @@
 ; (fixme) this impelements a special case where b = 0
 (require math
          (prefix-in config: "../../config.rkt")
-         (prefix-in tokamak: "../../tokamak.rkt")
          (prefix-in r1cs: "../../r1cs/r1cs-grammar.rkt")
-         "../../verbose.rkt")
+         "../../logging.rkt"
+         "../../exit.rkt")
 (provide apply-lemma)
 
 ; recursively apply linear lemma
 (define (apply-lemma ks us p1cnsts range-vec)
-    (vprintf "  propagation (bim lemma): ")
+    (picus:log-progress "[bim lemma] starting propagation")
     (define-values (tmp-ks tmp-us) (process ks us p1cnsts range-vec))
     (let ([s0 (set-subtract tmp-ks ks)])
         (if (set-empty? s0)
-            (vprintf "none.\n")
-            (vprintf "~e added.\n" s0)))
+            (picus:log-debug "[bim lemma] nothing added")
+            (picus:log-debug "[bim lemma] adding ~e" s0)))
 
     ; apply once is enough, return
     (values tmp-ks tmp-us)
@@ -37,7 +37,7 @@
         [(equal? x "ps5") (- config:p 5)]
         [(equal? x "zero") 0]
         [(equal? x "one") 1]
-        [else (tokamak:exit "unsupported constant, got: ~a" x)]
+        [else (picus:tool-error "unsupported constant, got: ~a" x)]
     )
 )
 

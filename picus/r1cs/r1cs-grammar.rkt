@@ -1,9 +1,7 @@
 #lang racket
-(require
-    (prefix-in tokamak: "../tokamak.rkt")
-    (prefix-in utils: "../utils.rkt")
-    (prefix-in config: "../config.rkt")
-)
+(require "../exit.rkt"
+         (prefix-in utils: "../utils.rkt")
+         (prefix-in config: "../config.rkt"))
 (provide (all-defined-out))
 
 ; reference: https://github.com/franklynwang/EcneProject/blob/master/src/R1CSConstraintSolver.jl#L10
@@ -109,7 +107,7 @@
                 )
             ]
             [(rmod v mod) (do v)]
-            [else (tokamak:exit "not supported: ~a" obj0)]
+            [_ (picus:tool-error "not supported: ~a" obj0)]
         )
     )
     ; call print function and return the printed string
@@ -162,7 +160,7 @@
             [(rsub vs) (append* (for/list ([v vs]) (do v)))]
             [(rmul vs) (append* (for/list ([v vs]) (do v)))]
             [(rmod v mod) (append (do v) (do mod))]
-            [_ (tokamak:exit "not supported: ~a" obj0)]
+            [_ (picus:tool-error "not supported: ~a" obj0)]
         )
     )
     ; then call it and remove duplicates, and return
@@ -197,9 +195,9 @@
             [(rlt lhs rhs) (append (do lhs) (do rhs))]
             [(rgeq lhs rhs) (append (do lhs) (do rhs))]
             [(rgt lhs rhs) (append (do lhs) (do rhs))]
-            [(rand vs) (tokamak:exit "get-assert-variables/linear receives rand, which is not supported.")]
+            [(rand vs) (picus:tool-error "get-assert-variables/linear receives rand, which is not supported")]
             [(rimp lhs rhs) (append (do lhs) (do rhs))]
-            [(ror vs) (tokamak:exit "get-assert-variables/linear receives ror, which is not supported.")]
+            [(ror vs) (picus:tool-error "get-assert-variables/linear receives ror, which is not supported")]
             [(rint v) (list )]
             [(rvar v)
                 (if arg-indexonly
@@ -230,7 +228,7 @@
                 )
             ]
             [(rmod v mod) (append (do v) (do mod))]
-            [_ (tokamak:exit "not supported: ~a" obj0)]
+            [_ (picus:tool-error "not supported: ~a" obj0)]
         )
     )
     ; then call it and remove duplicates, and return
@@ -254,9 +252,9 @@
             [(rlt lhs rhs) (append (do lhs include?) (do rhs include?))]
             [(rgeq lhs rhs) (append (do lhs include?) (do rhs include?))]
             [(rgt lhs rhs) (append (do lhs include?) (do rhs include?))]
-            [(rand vs) (tokamak:exit "get-assert-variables/nonlinear receives rand, which is not supported.")]
+            [(rand vs) (picus:tool-error "get-assert-variables/nonlinear receives rand, which is not supported")]
             [(rimp lhs rhs) (append (do lhs) (do rhs))]
-            [(ror vs) (tokamak:exit "get-assert-variables/nonlinear receives ror, which is not supported.")]
+            [(ror vs) (picus:tool-error "get-assert-variables/nonlinear receives ror, which is not supported")]
             [(rint v) (list )]
             [(rvar v)
                 ; only include when include? is #t
@@ -283,7 +281,7 @@
                  ; more than 1 var, all involved vars are non-linear
                  (append* (for/list ([v vs]) (do v #t))))]
             [(rmod v mod) (append (do v include?) (do mod include?))]
-            [_ (tokamak:exit "not supported: ~a" obj0)]
+            [_ (picus:tool-error "not supported: ~a" obj0)]
         )
     )
     ; then call it and remove duplicates, and return
@@ -316,7 +314,7 @@
 (define (extract-header-section arg-raw)
     (define field-size (utils:bytes->number (subbytes arg-raw 0 4))) ; field size in bytes
     (when (not (zero? (remainder field-size 8)))
-        (tokamak:exit "# [exception][extract-header-section] field size should be a multiple of 8, got: ~a.") field-size)
+      (picus:tool-error "[extract-header-section] field size should be a multiple of 8, got: ~a" field-size))
     (define raw-prime (subbytes arg-raw 4 (+ 4 field-size))) ; prime number
     ;; reverse since it's big-endian
     (define bs (reverse (bytes->list raw-prime)))
@@ -397,15 +395,13 @@
        (cons cs (do-extract (+ internal-pos block-end)))]))
   (define clist (do-extract 0))
   (when (not (equal? arg-m (length clist)))
-    (tokamak:exit
-     (format "# [exception][extract-constraint-section] number of constraints is not equal to mconstraints, got: ~a and ~a." (length clist) arg-m)))
+    (picus:tool-error "[extract-constraint-section] number of constraints is not equal to mconstraints, got: ~a and ~a" (length clist) arg-m))
   (constraint-section clist))
 
 (define (extract-w2l-section arg-raw)
     ; every label id takes 8 bytes
     (when (not (zero? (remainder (bytes-length arg-raw) 8)))
-        (tokamak:exit 
-            (format "# [exception][extract-w2l-section] bytes length should be a multiple of 8, got: ~a." (bytes-length arg-raw))))
+      (picus:tool-error "[extract-w2l-section] bytes length should be a multiple of 8, got: ~a" (bytes-length arg-raw)))
     (define n (/ (bytes-length arg-raw) 8))
     (define map0 
         (for/list ([i n])
@@ -468,7 +464,7 @@
 (define (find-section arg-raw arg-type)
     (cond
         [(zero? (bytes-length arg-raw))
-            (tokamak:exit (format "# [exception][find-section-pos] cannot find position of section given type: ~a." arg-type))
+         (picus:tool-error "[find-section-pos] cannot find position of section given type: ~a" arg-type)
         ]
         [else
             (define section0-type (utils:bytes->number (subbytes arg-raw 0 4)))
@@ -491,18 +487,18 @@
 
     (define magic-number (subbytes raw 0 4)) ; should be #x72 #x31 #x63 #x72
     (when (not (equal? magic-number (bytes #x72 #x31 #x63 #x73)))
-        (tokamak:exit (format "# [exception][read-r1cs] magic number is incorrect, got: ~a." magic-number)))
+      (picus:tool-error "[read-r1cs] magic number is incorrect, got: ~a" magic-number))
 
     (define version (utils:bytes->number (subbytes raw 4 8)))
     (when (not (equal? 1 version ))
-        (tokamak:exit (format "# [exception][read-r1cs] version is not supported, got: ~a." version)))
+      (picus:tool-error "[read-r1cs] version is not supported, got: ~a" version))
 
     (define nsec (utils:bytes->number (subbytes raw 8 12)))
 
     (define raw-sections (subbytes raw 12)) ; 12=4+4+4, remove the meta zone
     (define fraw-sections (filter-sections raw-sections)) ; remove sections with undefined section types
     (when (not (equal? 3 (count-sections fraw-sections)))
-        (tokamak:exit (format "# [exception][read-r1cs] r1cs needs to contain 3 sections, got: ~a." (count-sections fraw-sections))))
+      (picus:tool-error "[read-r1cs] r1cs needs to contain 3 sections, got: ~a" (count-sections fraw-sections)))
 
 
     ; find aand process header section, +12 to skip section meta zone

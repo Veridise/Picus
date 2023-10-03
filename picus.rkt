@@ -1,7 +1,6 @@
 #lang racket
 ; common require
-(require (prefix-in tokamak: "./picus/tokamak.rkt")
-         (prefix-in utils: "./picus/utils.rkt")
+(require (prefix-in utils: "./picus/utils.rkt")
          (prefix-in config: "./picus/config.rkt")
          (prefix-in solver: "./picus/solver.rkt")
          (prefix-in r1cs: "./picus/r1cs/r1cs-grammar.rkt")
@@ -9,15 +8,17 @@
          (prefix-in pre: "./picus/precondition.rkt")
          "picus/tmpdir.rkt"
          "picus/ansi.rkt"
-         "picus/verbose.rkt"
-         "picus/global-inputs.rkt")
+         "picus/global-inputs.rkt"
+         "picus/logging.rkt"
+         "picus/framework.rkt"
+         "picus/exit.rkt")
 
 ; =====================================
 ; ======== commandline parsing ========
 ; =====================================
 ; parse command line arguments
-(define arg-r1cs #f)
-(define arg-circom #f)
+(define arg-json? #f)
+(define arg-truncate? 'unset)
 (define arg-patch? #f)
 (define arg-opt-level #f)
 (define arg-clean? #t)
@@ -27,56 +28,54 @@
 (define arg-precondition null)
 (define arg-prop #t)
 (define arg-slv #t)
-(define arg-smt #f)
 (define arg-strong #f)
 (define arg-cex-verbose 0)
+(define arg-log-level #f)
+
+(define (circom-file? path)
+  (string-suffix? path ".circom"))
+
+(define (r1cs-file? path)
+  (string-suffix? path ".r1cs"))
+
+(define source
 (command-line
- #:once-any
- [("--r1cs") p-r1cs "path to target r1cs"
-             (set! arg-r1cs p-r1cs)
-             (when (not (string-suffix? arg-r1cs ".r1cs"))
-               (tokamak:exit "file needs to be *.r1cs"))]
- [("--circom") p-circom "path to target circom (need circom compiler in PATH)"
-               (set! arg-circom p-circom)
-               (when (not (string-suffix? arg-circom ".circom"))
-                 (tokamak:exit "file needs to be *.circom"))]
  #:once-each
+ [("--json") "enable json logging (default: false)"
+             (set! arg-json? #t)]
  [("--noclean") "do not clean up temporary files (default: false)"
                 (set! arg-clean? #f)]
- [("--patch-circom") "patch circom file to add public inputs (only applicable for --circom, default: false)"
+ [("--patch-circom") "patch circom file to add public inputs (only applicable for circom source, default: false)"
                      (set! arg-patch? #t)]
- [("--opt-level") p-opt-level "optimization level for circom compilation (only applicable for --circom, default: 0)"
+ [("--opt-level") p-opt-level "optimization level for circom compilation (only applicable for circom source, default: 0)"
                   (set! arg-opt-level
                         (match p-opt-level
                           [(or "0" "1" "2") p-opt-level]
-                          [_ (tokamak:exit "unrecognized optimization level: ~a" p-opt-level)]))]
+                          [_ (picus:user-error "unrecognized optimization level: ~a" p-opt-level)]))]
  [("--timeout") p-timeout "timeout for every small query (default: 5000ms)"
                 (set! arg-timeout (string->number p-timeout))]
  [("--solver") p-solver "solver to use: z3 | cvc4 | cvc5 (default: cvc5)"
                (cond
                  [(set-member? (set "z3" "cvc5" "cvc4") p-solver) (set! arg-solver p-solver)]
-                 [else (tokamak:exit "solver needs to be either z3 or cvc5")])]
+                 [else (picus:user-error "solver needs to be either z3 or cvc5")])]
  [("--selector") p-selector "selector to use: first | counter (default: counter)"
-                 (set! arg-selector p-selector)]
- [("--precondition") p-precondition "path to precondition json (default: null)"
+                 (match p-selector
+                   [(or "first" "counter") (set! arg-selector p-selector)]
+                   [_ (picus:user-error "selector needs to be either first or counter")])]
+ [("--precondition") p-precondition "path to precondition json (default: none)"
                      (set! arg-precondition p-precondition)]
  [("--noprop") "disable propagation (default: false / propagation on)"
                (set! arg-prop #f)]
  [("--nosolve") "disable solver phase (default: false / solver on)"
                 (set! arg-slv #f)]
- [("--smt") "show path to generated smt files (default: false)"
-            (set! arg-smt #t)]
  [("--strong") "check for strong safety (default: false)"
                (set! arg-strong #t)]
- [("--verbose")
-  verbose
-  ["verbose level (default: 0)"
-   "  0: not verbose; only display the final output"
-   "  1: output algorithm computation, but display ... when the output is too large"
-   "  2: output full algorithm computation"]
-  (set-verbose! (match verbose
-                  [(or "0" "1" "2") (string->number verbose)]
-                  [_ (tokamak:exit "unrecognized verbose level: ~a" verbose)]))]
+ [("--truncate") p-truncate
+                 "truncate overly long logged message: on | off (default: off for --json, on otherwise)"
+                 (match p-truncate
+                   ["on" (set! arg-truncate? #t)]
+                   ["off" (set! arg-truncate? #f)]
+                   [_ (picus:user-error "truncate mode can only be either on or off")])]
  [("--cex-verbose") cex-verbose
                     ["counterexample verbose level (default: 0)"
                      "  0: not verbose; only output with circom variable format"
@@ -85,44 +84,67 @@
                     (set! arg-cex-verbose
                           (match cex-verbose
                             [(or "0" "1" "2") (string->number cex-verbose)]
-                            [_ (tokamak:exit "unrecognized verbose level: ~a" cex-verbose)]))])
+                            [_ (picus:user-error "unrecognized verbose level: ~a" cex-verbose)]))]
+ [("--log-level") p-log-level
+                  ["The log-level for text logging (only applicable when --json is not supplied, default: info)"
+                   (format "Possible levels (in the ascending order): ~a"
+                           (string-join (get-levels) ", "))]
+                  (cond
+                    [(member p-log-level (get-levels))
+                     (set! arg-log-level p-log-level)]
+                    [else (picus:user-error "unrecognized log-level: ~a" p-log-level)])]
+ #:args (source)
+ (cond
+   [(or (circom-file? source) (r1cs-file? source)) source]
+   [else (picus:user-error "file needs to have suffix .circom or .r1cs, got ~a" source)])))
 
-(unless (or arg-r1cs arg-circom)
-  (tokamak:exit "specify either --r1cs or --circom"))
 
-(unless (implies arg-opt-level arg-circom)
-  (tokamak:exit "--opt-level only applicable for --circom"))
+(with-framework
+  #:level (or arg-log-level "INFO")
+  #:json? arg-json?
+  #:truncate? (match arg-truncate?
+                ['unset (not arg-json?)]
+                [_ arg-truncate?])
+  (λ ()
 
-(unless (implies arg-patch? arg-circom)
-  (tokamak:exit "--patch-circom only applicable for --circom"))
+(unless (implies arg-opt-level (circom-file? source))
+  (picus:user-error "--opt-level only applicable for circom source"))
 
-(define (callsys cmd . args)
-  (match (get-verbose)
-    [0
-     (define outp (open-output-string))
-     (define ret-status
-       (parameterize ([current-output-port outp]
-                      [current-error-port outp])
-         (apply system* cmd args)))
-     (unless ret-status
-       (display (get-output-string outp)))
-     ret-status]
-    [_ (apply system* cmd args)]))
+(define opt-level (or arg-opt-level "0"))
+
+(unless (implies arg-patch? (circom-file? source))
+  (picus:user-error "--patch-circom only applicable for circom source"))
+
+(unless (implies arg-log-level (not arg-json?))
+  (picus:user-error "--log-level only applicable when --json is not given"))
+
+(define (invoke-system cmd . args)
+  (define outp (open-output-string))
+  (define ret
+    (parameterize ([current-output-port outp]
+                   [current-error-port outp])
+      (apply system* cmd args)))
+  (values ret (get-output-string outp)))
 
 ;; compile-circom :: path? -> path?
 ;; compile circom file to r1cs file
 (define (compile-circom circom-path)
-  (unless (callsys (find-executable-path "circom")
+  (define-values (ret out)
+    (invoke-system (find-executable-path "circom")
                    "-o"
                    (get-tmpdir)
                    "--r1cs"
                    circom-path
                    "--sym"
-                   (match arg-opt-level
-                     [(or #f "0") "--O0"]
+                   (match opt-level
+                     ["0" "--O0"]
                      ["1" "--O1"]
-                     ["2" "--O2"]))
-    (tokamak:exit "circom compilation failed"))
+                     ["2" "--O2"])))
+  (cond
+    [ret (picus:log-debug "circom output: ~a" out)]
+    [else
+     (picus:log-error "[circom] ~a" )
+     (picus:user-error "circom compilation failed")])
   (~a (build-path
        (get-tmpdir)
        (file-name-from-path (path-replace-extension circom-path ".r1cs")))))
@@ -164,19 +186,20 @@
 
 (define-values (r1cs-path r0)
   (cond
-    [arg-r1cs (values arg-r1cs (r1cs:read-r1cs arg-r1cs))]
-    [else (compile+patch-circom arg-circom arg-patch?)]))
+    [(r1cs-file? source) (values source (r1cs:read-r1cs source))]
+    [else (compile+patch-circom source arg-patch?)]))
 
-(vprintf "r1cs file: ~a\n" r1cs-path)
-(vprintf "timeout: ~a\n" arg-timeout)
-(vprintf "solver: ~a\n" arg-solver)
-(vprintf "selector: ~a\n" arg-selector)
-(vprintf "precondition: ~a\n" arg-precondition)
-(vprintf "propagation on: ~a\n" arg-prop)
-(vprintf "solver on: ~a\n" arg-slv)
-(vprintf "smt: ~a\n" arg-smt)
-(vprintf "strong: ~a\n" arg-strong)
-(vprintf "cex-verbose: ~a\n" arg-cex-verbose)
+(picus:log-debug "log level: ~a" arg-log-level)
+(picus:log-debug "source format: ~a" (if (circom-file? source) "circom" "r1cs"))
+(picus:log-debug "r1cs file: ~a" r1cs-path)
+(picus:log-debug "timeout: ~a" arg-timeout)
+(picus:log-debug "solver: ~a" arg-solver)
+(picus:log-debug "selector: ~a" arg-selector)
+(picus:log-debug "precondition: ~a" arg-precondition)
+(picus:log-debug "propagation enabled: ~a" arg-prop)
+(picus:log-debug "solver enabled: ~a" arg-slv)
+(picus:log-debug "safety mode: ~a" (if arg-strong "strong" "weak"))
+(picus:log-debug "cex-verbose: ~a" arg-cex-verbose)
 
 ; =================================================
 ; ======== resolve solver specific methods ========
@@ -194,10 +217,10 @@
 ; ==================================
 (define nwires (r1cs:get-nwires r0))
 (define mconstraints (r1cs:get-mconstraints r0))
-(vprintf "number of wires: ~a\n" nwires)
-(vprintf "number of constraints: ~a\n" mconstraints)
-(vprintf "field size (how many bytes): ~a\n" (r1cs:get-field-size r0))
-(vprintf "prime number: ~a\n" (r1cs:get-prime-number r0))
+(picus:log-debug "number of wires: ~a" nwires)
+(picus:log-debug "number of constraints: ~a" mconstraints)
+(picus:log-debug "field size (how many bytes): ~a" (r1cs:get-field-size r0))
+(picus:log-debug "prime number: ~a" (r1cs:get-prime-number r0))
 (config:set-p! (r1cs:get-prime-number r0))
 
 ; categorize signals
@@ -206,31 +229,31 @@
 (define output-list (r1cs:r1cs-outputs r0))
 (define output-set (list->set output-list))
 (define target-set (if arg-strong (list->set (range nwires)) (list->set output-list)))
-(vprintf "inputs: ~e.\n" input-list)
-(vprintf "outputs: ~e.\n" output-list)
-(vprintf "targets: ~e.\n" target-set)
+(picus:log-debug "inputs: ~e" input-list)
+(picus:log-debug "outputs: ~e" output-list)
+(picus:log-debug "targets: ~e" target-set)
 
 ; parse original r1cs
-(vprintf "parsing original r1cs...\n")
+(picus:log-progress "parsing original r1cs...")
 ;; invariant: (length varlist) = nwires
 (define-values (varlist opts defs cnsts) (parse-r1cs r0 '())) ; interpret the constraint system
-(vprintf "varlist: ~e.\n" varlist)
+(picus:log-debug "varlist: ~e" varlist)
 ; parse alternative r1cs
 (define alt-varlist
   (for/list ([i (in-range nwires)] [var (in-list varlist)])
     (if (not (utils:contains? input-list i))
         (format "y~a" i)
         var)))
-(vprintf "alt-varlist ~e.\n" alt-varlist)
-(vprintf "parsing alternative r1cs...\n")
+(picus:log-debug "alt-varlist ~e" alt-varlist)
+(picus:log-progress "parsing alternative r1cs...")
 (define-values (_ __ alt-defs alt-cnsts) (parse-r1cs r0 alt-varlist))
 
-(vprintf "configuring precondition...\n")
+(picus:log-progress "configuring precondition...")
 (define-values (unique-set precondition)
   (if (null? arg-precondition)
       (values (set) '())
       (pre:read-precondition arg-precondition))) ; read!
-(vprintf "unique: ~a.\n" unique-set)
+(picus:log-debug "unique: ~a" unique-set)
 
 ; ============================
 ; ======== main solve ========
@@ -262,39 +285,46 @@
    varlist opts defs cnsts
    alt-varlist alt-defs alt-cnsts
    unique-set precondition ; prior knowledge row
-   arg-selector arg-prop arg-slv arg-timeout arg-smt arg-cex-verbose path-sym
+   arg-selector arg-prop arg-slv arg-timeout arg-cex-verbose path-sym
    solve interpret-r1cs
    optimize-r1cs-p0 expand-r1cs normalize-r1cs optimize-r1cs-p1))
-(vprintf "final unknown set ~e.\n" res-us)
-(printf "~a uniqueness: ~a.\n" (if arg-strong "strong" "weak") res)
+(picus:log-debug "final unknown set ~e" res-us)
+(picus:log-debug "~a uniqueness: ~a" (if arg-strong "strong" "weak") res)
 
 ;; format-cex :: string?, (listof (pairof string? any/c)), #:diff (listof (pairof string? any/c)) -> void?
 (define (format-cex heading info #:diff [diff info])
-  (printf "  ~a:\n" heading)
+  (picus:log-main "  ~a:" heading)
   (for ([entry (in-list info)] [diff-entry (in-list diff)])
-    (printf (cond
-              [(equal? (cdr entry) (cdr diff-entry))
-               "    ~a: ~a\n"]
-              [else (highlight "    ~a: ~a\n")])
-            (car entry) (cdr entry)))
+    (picus:log-main (cond
+                      [(equal? (cdr entry) (cdr diff-entry))
+                       "    ~a: ~a"]
+                      [else (highlight "    ~a: ~a")])
+                    (car entry) (cdr entry)))
   (when (empty? info)
-    (printf "    no ~a\n" heading)))
+    (picus:log-main "    no ~a" heading)))
 
 ;; order :: hash? -> (listof (pairof string? any/c))
 (define (order info)
   (sort (hash->list info) string<? #:key car))
 
-(when (equal? 'unsafe res)
-  (printf "~a is underconstrained. Below is a counterexample:\n" r1cs-path)
-  (match-define (list input-info output1-info output2-info other-info) res-info)
-  (define output1-ordered (order output1-info))
-  (define output2-ordered (order output2-info))
+(match res
+  ['unsafe
+   (picus:log-main "The circuit is underconstrained")
+   (picus:log-main "Counterexample:")
+   (match-define (list input-info output1-info output2-info other-info) res-info)
+   (define output1-ordered (order output1-info))
+   (define output2-ordered (order output2-info))
 
-  (format-cex "inputs" (order input-info))
-  (format-cex "first possible outputs" output1-ordered #:diff output2-ordered)
-  (format-cex "second possible outputs" output2-ordered #:diff output1-ordered)
-  (when (> arg-cex-verbose 0)
-    (format-cex "other bindings" (order other-info))))
+   (format-cex "inputs" (order input-info))
+   (format-cex "first possible outputs" output1-ordered #:diff output2-ordered)
+   (format-cex "second possible outputs" output2-ordered #:diff output1-ordered)
+   (when (> arg-cex-verbose 0)
+     (format-cex "other bindings" (order other-info)))
+   (picus:exit exit-code:issues)]
+  ['safe
+   (picus:log-main "The circuit is properly constrained")]
+  ['unknown
+   (picus:log-main "Cannot determine whether the circuit is properly constrained")])
 
 (when arg-clean?
-  (clean-tmpdir!))
+  (clean-tmpdir!))))

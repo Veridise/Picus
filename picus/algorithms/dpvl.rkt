@@ -1,7 +1,6 @@
 #lang racket
 ; this implements the decide & propagate verification loop algorithm
 (require csv-reading
-         (prefix-in tokamak: "../tokamak.rkt")
          (prefix-in r1cs: "../r1cs/r1cs-grammar.rkt")
          (prefix-in selector: "./selector.rkt")
          ; lemmas
@@ -11,7 +10,8 @@
          (prefix-in l3: "./lemmas/aboz-lemma.rkt")
          (prefix-in l4: "./lemmas/bim-lemma.rkt")
          ; (prefix-in ln0: "./lemmas/baby-lemma.rkt")
-         "../verbose.rkt")
+         "../logging.rkt"
+         "../exit.rkt")
 (provide apply-algorithm)
 
 ; ======== module global variables ======== ;
@@ -53,7 +53,6 @@
 (define :arg-prop null)
 (define :arg-slv null)
 (define :arg-timeout null)
-(define :arg-smt null)
 
 (define :unique-set null)
 (define :precondition null)
@@ -88,7 +87,7 @@
 ;   - (values 'sat info): the given query has a counter-example (not verified)
 ;   - (values 'skip info): the given query times out (small step)
 (define (dpvl-solve ks us sid)
-  (vprintf "  checking: (~a ~a), " (vector-ref :varvec sid) (vector-ref :alt-varvec sid))
+  (picus:log-progress "[solver] checking (~a, ~a)" (vector-ref :varvec sid) (vector-ref :alt-varvec sid))
   ; assemble commands
   (define known-cmds
     (r1cs:rcmds
@@ -118,35 +117,33 @@
                       (r1cs:rsolve))))))
   ; perform optimization
   (define final-str (:interpret-r1cs (r1cs:rcmds-append :opts final-cmds)))
-  (define-values (res smt-path) (:solve final-str :arg-timeout #:output-smt? #f))
+  (define res (:solve final-str :arg-timeout))
   (define solved? (cond
                     [(equal? 'unsat (car res))
-                     (vprintf "verified.\n")
+                     (picus:log-progress "[solver] verified")
                      ; verified, safe
                      'verified]
                     [(equal? 'sat (car res))
                      (cond
                        ; skipping query, whatever sat is good
                        [:skip-query?
-                        (vprintf "sat (no query).\n")
+                        (picus:log-progress "[solver] sat (no query)")
                         'sat]
                        ; not skipping query, need to tell variable
                        ; (important) here if the current signal is not a target, it's ok to see a sat
                        [(set-member? :target-set sid)
                         ; the current signal is a target, now there's a counter-example, unsafe
                         ; in pp, this counter-example is valid
-                        (vprintf "sat.\n")
+                        (picus:log-progress "[solver] sat")
                         'sat]
                        [else
                         ; not a target, fine, just skip
-                        (vprintf "sat but not a target.\n")
+                        (picus:log-progress "[solver] sat but not a target")
                         'skip])]
                     [else
-                     (vprintf "skip.\n")
+                     (picus:log-progress "[solver] skipped")
                      ; possibly timeout in small step, result is unknown
                      'skip]))
-  (when :arg-smt
-    (vprintf "    smt path: ~a\n" smt-path))
   (values solved? (cdr res)))
 
 ; select and solve
@@ -175,7 +172,7 @@
        [(equal? 'sat solved?) (values 'break ks us info)]
        ; unknown or timeout, update uspool and recursively call again
        [(equal? 'skip solved?) (dpvl-select-and-solve ks us (set-remove uspool sid))]
-       [else (tokamak:error "unsupported solved? value, got: ~a." solved?)])]))
+       [else (picus:tool-error "unsupported solved? value, got: ~a" solved?)])]))
 
 ; (define tmp-inspect (list 512 513 514 515 516 517 518 519 384 385 386 387 388 389 390 391 392 393 394 395 396 397 398 399 400 401 402 403 404 405 406 407 408 409 410 411 412 413 414 415 416 417 418 419 420 421 422 423 424 425 426 427 428 429 430 431 432 433 434 435 436 437 438 439 440 441 442 443 444 445 446 447 448 449 450 451 452 453 454 455 456 457 458 459 460 461 462 463 464 465 466 467 468 469 470 471 472 473 474 475 476 477 478 479 480 481 482 483 484 485 486 487 488 489 490 491 492 493 494 495 496 497 498 499 500 501 502 503 504 505 506 507 508 509 510 511))
 ; (define tmp-inspect (list 1024 1025 1026 1027 1028 1029 1030 1031 896 897 898 899 900 901 902 903 904 905 906 907 908 909 910 911 912 913 914 915 916 917 918 919 920 921 922 923 924 925 926 927 928 929 930 931 932 933 934 935 936 937 938 939 940 941 942 943 944 945 946 947 948 949 950 951 952 953 954 955 956 957 958 959 960 961 962 963 964 965 966 967 968 969 970 971 972 973 974 975 976 977 978 979 980 981 982 983 984 985 986 987 988 989 990 991 992 993 994 995 996 997 998 999 1000 1001 1002 1003 1004 1005 1006 1007 1008 1009 1010 1011 1012 1013 1014 1015 1016 1017 1018 1019 1020 1021 1022 1023))
@@ -259,7 +256,7 @@
            (dpvl-iterate xnew-ks xnew-us)])]
        ; 'break means there's counter-example
        [(equal? 'break s0) (values 'unsafe xnew-ks xnew-us info)]
-       [else (tokamak:error "unsupported s0 value, got: ~a." s0)])]))
+       [else (picus:tool-error "unsupported s0 value, got: ~a" s0)])]))
 
 ; this creates a new hash with r1cs variables replaced by corresponding circom variables
 ; (note) when unmappable? is #f, this will remove helping variables like "one", "ps?", etc.
@@ -335,7 +332,7 @@
          varlist opts defs cnsts
          alt-varlist alt-defs alt-cnsts
          unique-set precondition
-         arg-selector arg-prop arg-slv arg-timeout arg-smt arg-cex-verbose path-sym
+         arg-selector arg-prop arg-slv arg-timeout arg-cex-verbose path-sym
          solve interpret-r1cs
          optimize-r1cs-p0 expand-r1cs normalize-r1cs optimize-r1cs-p1
          ; extra constraints, usually from cex module about partial model
@@ -367,7 +364,6 @@
   (set! :arg-prop arg-prop)
   (set! :arg-slv arg-slv)
   (set! :arg-timeout arg-timeout)
-  (set! :arg-smt arg-smt)
 
   (set! :unique-set unique-set)
   (set! :precondition precondition)
@@ -400,14 +396,14 @@
       i))
 
 
-  (vprintf "initial known-set ~e\n" known-set)
-  (vprintf "initial unknown-set ~e\n" unknown-set)
+  (picus:log-debug "initial known-set ~e" known-set)
+  (picus:log-debug "initial unknown-set ~e" unknown-set)
   
   ; (precondition related) incorporate unique-set if unique-set is not an empty set
   (set! known-set (set-union known-set unique-set))
   (set! unknown-set (set-subtract unknown-set unique-set))
-  (vprintf "refined known-set: ~e\n" known-set)
-  (vprintf "refined unknown-set: ~e\n" unknown-set)
+  (picus:log-debug "refined known-set: ~e" known-set)
+  (picus:log-debug "refined unknown-set: ~e" unknown-set)
 
   ; ==== branch out: skip optimization phase 0 and apply expand & normalize ====
   ; computing rcdmap need no ab0 lemma from optimization phase 0

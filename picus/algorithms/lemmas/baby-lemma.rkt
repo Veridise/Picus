@@ -11,22 +11,20 @@
 ;   then x1 and x2 are uniquely determined, so as other intermediate signals
 
 ;  (fixme) currently this lemma implementation is not super efficient
-(require (prefix-in config: "../../config.rkt")
-         (prefix-in tokamak: "../../tokamak.rkt")
-         (prefix-in r1cs: "../../r1cs/r1cs-grammar.rkt")
-         "../../verbose.rkt")
+(require (prefix-in r1cs: "../../r1cs/r1cs-grammar.rkt")
+         "../../logging.rkt")
 (provide apply-lemma)
 
 (define (apply-lemma ks us p1cnsts)
-    (vprintf "  propagation (baby lemma): ")
+    (picus:log-progress "[baby lemma] starting propagation")
     (define tmp-ks (list->set (set->list ks)))
     (define tmp-us (list->set (set->list us)))
 
     (set!-values (tmp-ks tmp-us) (process tmp-ks tmp-us p1cnsts))
     (let ([s0 (set-subtract tmp-ks ks)])
         (if (set-empty? s0)
-            (vprintf "none.\n")
-            (vprintf "~e added.\n" s0)))
+            (picus:log-debug "[baby lemma] nothing added")
+            (picus:log-debug "[baby lemma] adding ~e" s0)))
 
     ; apply once is enough, return
     (values tmp-ks tmp-us)
