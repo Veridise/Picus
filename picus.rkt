@@ -11,7 +11,8 @@
          "picus/global-inputs.rkt"
          "picus/logging.rkt"
          "picus/framework.rkt"
-         "picus/exit.rkt")
+         "picus/exit.rkt"
+         "picus/gen-witness.rkt")
 
 ; =====================================
 ; ======== commandline parsing ========
@@ -29,8 +30,8 @@
 (define arg-prop #t)
 (define arg-slv #t)
 (define arg-strong #f)
-(define arg-cex-verbose 0)
 (define arg-log-level #f)
+(define arg-wtns #f)
 
 (define (circom-file? path)
   (string-suffix? path ".circom"))
@@ -70,21 +71,15 @@
                 (set! arg-slv #f)]
  [("--strong") "check for strong safety (default: false)"
                (set! arg-strong #t)]
+ [("--wtns") p-wtns
+             "wtns files output directory (default: don't output)"
+             (set! arg-wtns p-wtns)]
  [("--truncate") p-truncate
                  "truncate overly long logged message: on | off (default: off for --json, on otherwise)"
                  (match p-truncate
                    ["on" (set! arg-truncate? #t)]
                    ["off" (set! arg-truncate? #f)]
                    [_ (picus:user-error "truncate mode can only be either on or off")])]
- [("--cex-verbose") cex-verbose
-                    ["counterexample verbose level (default: 0)"
-                     "  0: not verbose; only output with circom variable format"
-                     "  1: output with circom variable format when applicable, and r1cs signal format otherwise"
-                     "  2: output with r1cs signal format"]
-                    (set! arg-cex-verbose
-                          (match cex-verbose
-                            [(or "0" "1" "2") (string->number cex-verbose)]
-                            [_ (picus:user-error "unrecognized verbose level: ~a" cex-verbose)]))]
  [("--log-level") p-log-level
                   ["The log-level for text logging (only applicable when --json is not supplied, default: info)"
                    (format "Possible levels (in the ascending order): ~a"
@@ -199,7 +194,6 @@
 (picus:log-debug "propagation enabled: ~a" arg-prop)
 (picus:log-debug "solver enabled: ~a" arg-slv)
 (picus:log-debug "safety mode: ~a" (if arg-strong "strong" "weak"))
-(picus:log-debug "cex-verbose: ~a" arg-cex-verbose)
 
 ; =================================================
 ; ======== resolve solver specific methods ========
@@ -278,16 +272,17 @@
 ;    | (downstream queries)
 ;   ...
 (define path-sym (string-replace r1cs-path ".r1cs" ".sym"))
-(define-values (res res-ks res-us res-info)
+(define-values (res res-ks res-us readable-res-info raw-res-info)
   (dpvl:apply-algorithm
    r0 nwires mconstraints
    input-set output-set target-set
    varlist opts defs cnsts
    alt-varlist alt-defs alt-cnsts
    unique-set precondition ; prior knowledge row
-   arg-selector arg-prop arg-slv arg-timeout arg-cex-verbose path-sym
+   arg-selector arg-prop arg-slv arg-timeout path-sym
    solve interpret-r1cs
    optimize-r1cs-p0 expand-r1cs normalize-r1cs optimize-r1cs-p1))
+(picus:log-debug "raw map: ~a" raw-res-info)
 (picus:log-debug "final unknown set ~e" res-us)
 (picus:log-debug "~a uniqueness: ~a" (if arg-strong "strong" "weak") res)
 
@@ -303,23 +298,23 @@
   (when (empty? info)
     (picus:log-main "    no ~a" heading)))
 
-;; order :: hash? -> (listof (pairof string? any/c))
-(define (order info)
-  (sort (hash->list info) string<? #:key car))
-
 (match res
   ['unsafe
    (picus:log-main "The circuit is underconstrained")
    (picus:log-main "Counterexample:")
-   (match-define (list input-info output1-info output2-info other-info) res-info)
-   (define output1-ordered (order output1-info))
-   (define output2-ordered (order output2-info))
+   (match-define (list in out1 out2 other1 other2)
+     readable-res-info)
 
-   (format-cex "inputs" (order input-info))
-   (format-cex "first possible outputs" output1-ordered #:diff output2-ordered)
-   (format-cex "second possible outputs" output2-ordered #:diff output1-ordered)
-   (when (> arg-cex-verbose 0)
-     (format-cex "other bindings" (order other-info)))
+   (format-cex "inputs" in)
+   (format-cex "first possible outputs" out1 #:diff out2)
+   (format-cex "second possible outputs" out2 #:diff out1)
+   (format-cex "first internal variables" other1)
+   (format-cex "second internal variables" other2)
+
+   (when arg-wtns
+     (parameterize ([current-directory arg-wtns])
+       (gen-witness raw-res-info r0)))
+
    (picus:exit exit-code:issues)]
   ['safe
    (picus:log-main "The circuit is properly constrained")]
