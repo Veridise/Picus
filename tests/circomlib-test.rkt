@@ -56,6 +56,7 @@
                     (vector "--solver" "cvc5"
                             "--timeout" "5000"
                             "--patch-circom"
+                            "--wtns" "."
                             (~a (build-path
                                  benchmark-dir
                                  (format "~a.circom" filename))))]

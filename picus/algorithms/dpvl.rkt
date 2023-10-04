@@ -260,52 +260,38 @@
 
 ; this creates a new hash with r1cs variables replaced by corresponding circom variables
 ; (note) when unmappable? is #f, this will remove helping variables like "one", "ps?", etc.
-;; map-to-vars :: (listof hash?), path-string?, #:unmappable? boolean? -> (listof hash?)
-(define (map-to-vars info path-sym #:unmappable? [unmappable? #f])
-  (define rd (csv->list (open-input-file path-sym)))
+;; map-to-vars :: (listof hash?), path-string? -> (listof hash?)
+(define (map-to-vars info path-sym)
+  (define rd (call-with-input-file* path-sym (λ (port) (csv->list port))))
   ; create r1cs-id to circom-var mapping
   (define r2c-map
     (make-hash (for/list ([p rd]) (cons (list-ref p 0) (list-ref p 3)))))
   (define (process-subinfo pinfo)
-    (define new-info (make-hash))
-    (for ([(k val) (in-hash pinfo)])
-      (cond
-        [(string-prefix? k "x")
-         (define rid (substring k 1))
-         (define cid (hash-ref r2c-map rid))
-
-         (define sid (format "m1.~a" cid))
-         (hash-set! new-info sid val)]
-        [(string-prefix? k "y")
-         (define rid (substring k 1))
-         (define cid (hash-ref r2c-map rid))
-
-         (define sid (format "m2.~a" cid))
-         (hash-set! new-info sid val)]
-        [else
-         (when unmappable?
-           (hash-set! new-info k val))]))
-    new-info)
+    (for/list ([pair (in-list pinfo)]
+               #:do [(match-define (cons k val) pair)])
+      (cons (format "~a" (hash-ref r2c-map (number->string k))) val)))
   (map process-subinfo info))
 
-;; partition-vars :: (or/c '() hash?), set?, set? -> (list/c hash? hash? hash? hash?)
+;; partition-vars :: (or/c '() hash?), set?, set? -> (list/c hash? hash? hash? hash? hash?)
 (define (partition-vars info input-set output-set)
   (define pinfo (if (list? info) (make-hash) info)) ; patch for info type, fix later
-  (for/fold ([input-info (hash)]
-             [output1-info (hash)]
-             [output2-info (hash)]
-             [other-info (hash)]
-             #:result (list input-info output1-info output2-info other-info))
+  (for/fold ([input-info '()]
+             [output1-info '()]
+             [output2-info '()]
+             [other1-info '()]
+             [other2-info '()]
+             #:result (list input-info output1-info output2-info other1-info other2-info))
             ([(k v) (in-hash pinfo)])
     (match k
       ;; matching for a variable in the input set. By construction,
       ;; this variable is in the form x<number-id>.
       [(pregexp #px"^x(\\d+)$" (list _ (app string->number n)))
        #:when (set-member? input-set n)
-       (values (hash-set input-info k v)
+       (values (cons (cons n v) input-info)
                output1-info
                output2-info
-               other-info)]
+               other1-info
+               other2-info)]
       ;; matching for a variable in the output set. By construction,
       ;; this variable is in the form x<number-id> or y<number-id>,
       ;; where x indicates that it is in the first set
@@ -313,13 +299,37 @@
       [(pregexp #px"^(?:x|y)(\\d+)$" (list _ (app string->number n)))
        #:when (set-member? output-set n)
        (values input-info
-               (if (string-prefix? k "x") (hash-set output1-info k v) output1-info)
-               (if (string-prefix? k "y") (hash-set output2-info k v) output2-info)
-               other-info)]
-      [_ (values input-info
-                 output1-info
-                 output2-info
-                 (hash-set other-info k v))])))
+               (if (string-prefix? k "x") (cons (cons n v) output1-info) output1-info)
+               (if (string-prefix? k "y") (cons (cons n v) output2-info) output2-info)
+               other1-info
+               other2-info)]
+      ;; matching for internal signals. By construction,
+      ;; this variable is in the form x<number-id> or y<number-id>,
+      ;; where x indicates that it is in the first set
+      ;; and y indicates that it is in the second set.
+      [(pregexp #px"^(?:x|y)(\\d+)$" (list _ (app string->number n)))
+       (values input-info
+               output1-info
+               output2-info
+               (if (string-prefix? k "x") (cons (cons n v) other1-info) other1-info)
+               (if (string-prefix? k "y") (cons (cons n v) other2-info) other2-info))]
+
+      ;; matching for symbolic variables inserted by Picus
+      [(pregexp #px"^(?:ps\\d|zero|one|p)$")
+       (values input-info
+               output1-info
+               output2-info
+               other1-info
+               other2-info)]
+
+      [_ (picus:tool-error "unexpected variable: ~a" k)])))
+
+;; sort variables according to their signal id
+;; We do this since it's an easy way to sort array entries properly.
+;; Had we use naive string comparison on the variable names,
+;; we would have "x[11]" < "x[2]"
+(define (sort-vars info)
+  (map (λ (subinfo) (sort subinfo < #:key car)) info))
 
 ; verifies signals in target-set
 ; returns (same as dpvl-iterate):
@@ -332,7 +342,7 @@
          varlist opts defs cnsts
          alt-varlist alt-defs alt-cnsts
          unique-set precondition
-         arg-selector arg-prop arg-slv arg-timeout arg-cex-verbose path-sym
+         arg-selector arg-prop arg-slv arg-timeout path-sym
          solve interpret-r1cs
          optimize-r1cs-p0 expand-r1cs normalize-r1cs optimize-r1cs-p1
          ; extra constraints, usually from cex module about partial model
@@ -482,13 +492,14 @@
   (when (hash? info)
     (hash-remove! info "x0"))
 
-  (define partitioned-info (partition-vars info input-set output-set))
+  (define partitioned-info (sort-vars (partition-vars info input-set output-set)))
 
-  ; do a remapping if enabled
+  (unless (file-exists? path-sym)
+    (picus:log-warning "~a does not exist" path-sym))
+
   (define mapped-info
-    (match arg-cex-verbose
-      [0 (map-to-vars partitioned-info path-sym)]
-      [1 (map-to-vars partitioned-info path-sym #:unmappable? #t)]
-      [2 partitioned-info]))
+    (cond
+      [(file-exists? path-sym) (map-to-vars partitioned-info path-sym)]
+      [else partitioned-info]))
 
-  (values ret0 rks rus mapped-info))
+  (values ret0 rks rus mapped-info partitioned-info))

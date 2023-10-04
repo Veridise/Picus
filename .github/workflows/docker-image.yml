@@ -40,6 +40,30 @@ jobs:
         run: |
           grep "^The circuit is underconstrained$" ./result.out
 
+  wtns-test:
+    runs-on: ubuntu-latest
+    container:
+      image: veridise/picus:git-latest
+    env:
+      PLTADDONDIR: /root/.local/share/racket/
+    steps:
+      - uses: actions/checkout@v1
+      - name: linking circom
+        run: ln -s /root/.cargo/bin/circom /usr/bin/circom
+      - name: run picus
+        run: |
+          set +e
+          racket ./picus.rkt --wtns . ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.circom
+          code=$?
+          if [ $code -ne 0 ] && [ $code -ne 9 ]; then
+            exit $code
+          fi
+        shell: bash # this ensures that pipefail is set
+      - name: test expected result
+        run: |
+          diff first-witness.wtns tests/data/first-witness.wtns.expect
+          diff second-witness.wtns tests/data/second-witness.wtns.expect
+
   # run the full test with cvc5
   main-test:
     strategy:
@@ -71,7 +95,7 @@ jobs:
           raco test ./tests/framework-test.rkt
 
   publish-docker:
-    needs: [configuration-test, main-test, misc-test]
+    needs: [wtns-test, configuration-test, main-test, misc-test]
     name: "Publish Docker image to DockerHub"
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
