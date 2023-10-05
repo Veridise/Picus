@@ -143,7 +143,7 @@
   (cond
     [ret (picus:log-debug "circom output: ~a" out)]
     [else
-     (picus:log-error "[circom] ~a" )
+     (picus:log-error "[circom] ~a" out)
      (picus:user-error "circom compilation failed")])
   (~a (build-path
        (get-tmpdir)
