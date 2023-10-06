@@ -11,6 +11,13 @@
 
 (provide with-framework)
 
+(define env-vars '(SERVICE_ID USER_ID CLIENT_ID TASK_ID BATCH_ID VERSION_ID PROJECT_ID CORRELATION_ID))
+(define fetched-env-vars
+  (for/hash ([var (in-list env-vars)]
+             #:do [(define val (getenv (symbol->string var)))]
+             #:when val)
+    (values var val)))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; printing functions
 
@@ -32,7 +39,8 @@
                     #:data data
                     #:timestamp timestamp)
   (define outp (current-outp))
-  (write-json (hash-union data
+  (write-json (hash-union fetched-env-vars
+                          data
                           (hash 'timestamp timestamp
                                 'level level
                                 'logger_name "picus")
