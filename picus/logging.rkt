@@ -57,7 +57,12 @@
          racket/string
          syntax/parse/define
          (for-syntax racket/base
-                     racket/syntax))
+                     racket/syntax
+                     racket/path
+                     racket/runtime-path))
+
+(begin-for-syntax
+  (define-runtime-path picus-root ".."))
 
 (define-logger picus)
 
@@ -139,7 +144,10 @@
       #:do [(define src (syntax-source this-syntax))
             (define line (syntax-line this-syntax))
             (define column (syntax-column this-syntax))]
-      #:with caller-lit (format "~a:~a:~a" src line column)
+      #:with caller-lit (format "~a:~a:~a"
+                                (find-relative-path (simple-form-path picus-root) src)
+                                line
+                                column)
       (internal-fun #:caller 'caller-lit . inner-args))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
