@@ -88,4 +88,5 @@ jobs:
         with:
           push: true
           file: Dockerfile
+          platforms: linux/amd64, linux/arm64
           tags: veridise/picus:git-latest, veridise/picus:git-${{ github.sha }}
