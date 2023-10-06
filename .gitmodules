@@ -1,0 +1,3 @@
+[submodule "release_helpers"]
+	path = release_helpers
+	url = git@github.com:Veridise/release_helpers.git
