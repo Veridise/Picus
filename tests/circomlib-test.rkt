@@ -132,10 +132,7 @@
   (check-result (make-run-config "CompConstant@compconstant") 'safe)
   (check-result (make-run-config "Decoder@multiplexer") 'unsafe)
   (check-result (make-run-config "Edwards2Montgomery@montgomery") 'unsafe)
-
-  ;; NOTE: is actually unknown, but it takes long time to run (~100s)
-  (check-result (make-run-config "EscalarMulAny@escalarmulany") 'timeout)
-
+  (check-result (make-run-config "EscalarMulAny@escalarmulany" #:timeout 200) 'unknown)
   (check-result (make-run-config "EscalarProduct@multiplexer") 'safe)
   (check-result (make-run-config "GreaterEqThan@comparators") 'safe)
   (check-result (make-run-config "GreaterThan@comparators") 'safe)
