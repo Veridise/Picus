@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+
+PLTSTDERR="error none@picus" racket ./picus.rkt "$@"
