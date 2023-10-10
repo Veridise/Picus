@@ -41,6 +41,7 @@
 
 (define source
 (command-line
+ #:usage-help "<source> must be a file with .circom or .r1cs extension"
  #:once-each
  [("--json") "enable json logging (default: false)"
              (set! arg-json? #t)]
@@ -81,7 +82,7 @@
                    ["off" (set! arg-truncate? #f)]
                    [_ (picus:user-error "truncate mode can only be either on or off")])]
  [("--log-level") p-log-level
-                  ["The log-level for text logging (only applicable when --json is not supplied, default: info)"
+                  ["The log-level for text logging (only applicable when --json is not supplied, default: INFO)"
                    (format "Possible levels (in the ascending order): ~a"
                            (string-join (get-levels) ", "))]
                   (cond

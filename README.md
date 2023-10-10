@@ -59,136 +59,77 @@ First change the directory to the repo's root path:
 ```bash
 cd Picus/
 ```
-
-Then run the script to compile the basic benchmarks:
-
-```bash
-./scripts/prepare-circomlib.sh
-```
-
-This compiles all the "circomlib-utils" benchmarks, and won't throw any error if the environment is configured successfully.
-
 Then test some benchmarks, e.g., the `Decoder` benchmark, run:
 
 ```bash
-racket ./picus.rkt --solver cvc5 --timeout 5000 --r1cs ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.r1cs
+./run-picus ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.circom
 ```
 
 A successful run will output logging info ***similar*** to the following (note that actual counter-example could be different due to potential stochastic search strategy in dependant libraries):
 
 ```
-# r1cs file: ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.r1cs
-# timeout: 5000
-# solver: cvc5
-# selector: counter
-# precondition: ()
-# propagation on: #t
-# solver on: #t
-# smt: #f
-# weak: #t
-# verbose: 0
-# number of wires: 5
-# number of constraints: 4
-# field size (how many bytes): 32
-# inputs: (0 4).
-# outputs: (1 2 3).
-# targets: #<set: 1 2 3>.
-# parsing original r1cs...
-# xlist: (x0 x1 x2 x3 x4).
-# alt-xlist (x0 y1 y2 y3 x4).
-# parsing alternative r1cs...
-# configuring precondition...
-# unique: #<set:>.
-# initial known-set #<set: 0 4>
-# initial unknown-set #<set: 1 2 3>
-# refined known-set: #<set: 0 4>
-# refined unknown-set: #<set: 1 2 3>
-  # propagation (linear lemma): none.
-  # propagation (binary01 lemma): none.
-  # propagation (basis2 lemma): none.
-  # propagation (aboz lemma): none.
-  # propagation (aboz lemma): none.
-  # checking: (x1 y1), sat.
-# final unknown set #<set: 1 2 3>.
-# weak uniqueness: unsafe.
-# ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.r1cs is underconstrained. Below is a counterexample:
-  # inputs:
-    # m1.main.inp: 0
-  # first possible outputs:
-    # m1.main.out[0]: 0
-    # m1.main.out[1]: 0
-    # m1.main.success: 0
-  # second possible outputs:
-    # m2.main.out[0]: 1
-    # m2.main.out[1]: 0
-    # m2.main.success: 1
+The circuit is underconstrained
+Counterexample:
+  inputs:
+    main.inp: 0
+  first possible outputs:
+    main.out[0]: 1
+    main.out[1]: 0
+    main.success: 1
+  second possible outputs:
+    main.out[0]: 0
+    main.out[1]: 0
+    main.success: 0
+  first internal variables:
+    no first internal variables
+  second internal variables:
+    no second internal variables
+Exiting Picus with the code 9
 ```
 
 If you see this, it means the environment that you are operating on is configured successfully.
 
 ## Reusability Instructions
 
-### Quick Problem Solving for New Circuits/Benchmarks
-
-We also provide easy API to compile and solve for any new benchmarks created. First you can use the following script to compile arbitrary benchmark:
-
-```bash
-./picus-compile.sh <path-to-your-circom-file>
-```
-
-This will generate a `*.r1cs` file in the same path as your provided `*.circom` file. Then, use the following script to solve for the benchmark:
-
-```bash
-./picus-solve.sh <path-to-your-r1cs-file>
-```
-
-This will automatically invoke the tool and output the result.
-
 ### More Options and APIs of the Tool
 
 The following lists out all available options for running the tool.
 
 ```bash
-usage: picus.rkt [ <option> ... ]
+usage: picus.rkt [ <option> ... ] <source>
+  <source> must be a file with .circom or .r1cs extension
 
 <option> is one of
 
-/ --r1cs <p-r1cs>
-|    path to target r1cs
-| --circom <p-circom>
-\    path to target circom (need circom compiler in PATH)
+  --json
+     enable json logging (default: false)
   --noclean
      do not clean up temporary files (default: false)
   --patch-circom
-     patch circom file to add public inputs (only applicable for --circom, default: false)
+     patch circom file to add public inputs (only applicable for circom source, default: false)
   --opt-level <p-opt-level>
-     optimization level for circom compilation (only applicable for --circom, default: 0)
+     optimization level for circom compilation (only applicable for circom source, default: 0)
   --timeout <p-timeout>
      timeout for every small query (default: 5000ms)
   --solver <p-solver>
-     solver to use: z3 | cvc4 | cvc5 (default: z3)
+     solver to use: z3 | cvc4 | cvc5 (default: cvc5)
   --selector <p-selector>
      selector to use: first | counter (default: counter)
   --precondition <p-precondition>
-     path to precondition json (default: null)
+     path to precondition json (default: none)
   --noprop
      disable propagation (default: false / propagation on)
   --nosolve
      disable solver phase (default: false / solver on)
-  --smt
-     show path to generated smt files (default: false)
   --strong
      check for strong safety (default: false)
-  --verbose <verbose>
-     verbose level (default: 0)
-       0: not verbose; only display the final output
-       1: output algorithm computation, but display ... when the output is too large
-       2: output full algorithm computation
-  --cex-verbose <cex-verbose>
-     counterexample verbose level (default: 0)
-       0: not verbose; only output with circom variable format
-       1: output with circom variable format when applicable, and r1cs signal format otherwise
-       2: output with r1cs signal format
+  --wtns <p-wtns>
+     wtns files output directory (default: don't output)
+  --truncate <p-truncate>
+     truncate overly long logged message: on | off (default: off for --json, on otherwise)
+  --log-level <p-log-level>
+     The log-level for text logging (only applicable when --json is not supplied, default: INFO)
+     Possible levels (in the ascending order): DEBUG, PROGRESS, INFO, WARNING, ERROR, CRITICAL
   --help, -h
      Show this help
   --
@@ -197,6 +138,9 @@ usage: picus.rkt [ <option> ... ]
  Multiple single-letter switches can be combined after
  one `-`. For example, `-h-` is the same as `-h --`.
 ```
+
+If `<source>` is a R1CS file, we highly recommend that the Circom compilation should use the `--O0` flag and with the `--sym` option.
+Otherwise, Picus may not be as effective as it can.
 
 ## Results interpretation
 
