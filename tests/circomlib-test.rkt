@@ -89,8 +89,9 @@
       [_ (printf "TIMEOUT\n")])
 
     (match expected
-      [(or 'safe 'unknown) (check-equal? ret-code exit-code:success)]
-      ['unsafe (check-equal? ret-code exit-code:issues)]
+      ['safe (check-equal? ret-code exit-code:safe)]
+      ['unknown (check-equal? ret-code exit-code:unknown)]
+      ['unsafe (check-equal? ret-code exit-code:unsafe)]
       ['timeout (check-false ret-code)])
 
     (match expected

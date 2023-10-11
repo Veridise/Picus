@@ -1,8 +1,9 @@
 #lang racket/base
 
 (provide picus:exit
-         exit-code:success
-         exit-code:issues
+         exit-code:safe
+         exit-code:unsafe
+         exit-code:unknown
          exit-code:tool-failure
          exit-code:tool-error
          exit-code:user-error
@@ -19,11 +20,14 @@
   (sleep 0.1)
   (exit code))
 
-;; exits normally
-(define exit-code:success 0)
+;; exits with the unknown status
+(define exit-code:unknown 0)
+
+;; exits with a guarantee
+(define exit-code:safe 8)
 
 ;; exits with issues
-(define exit-code:issues 9)
+(define exit-code:unsafe 9)
 
 ;; exits with tool failure (e.g., uncaught exception)
 (define exit-code:tool-failure 1)
