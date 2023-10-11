@@ -18,5 +18,5 @@ jobs:
         with:
           push: true
           file: resources/Dockerfile@base
-          platforms: linux/amd64, linux/arm64
+          platforms: linux/amd64
           tags: veridise/picus:base
