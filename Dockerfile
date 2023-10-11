@@ -4,4 +4,5 @@ FROM veridise/picus:base
 COPY ./ /Picus/
 
 WORKDIR /Picus/
+RUN raco make picus.rkt
 CMD [ "/bin/bash" ]
