@@ -299,6 +299,9 @@
   (when (empty? info)
     (picus:log-main "    no ~a" heading)))
 
+(when arg-clean?
+  (clean-tmpdir!))
+
 (match res
   ['unsafe
    (picus:log-main "The circuit is underconstrained")
@@ -315,12 +318,10 @@
    (when arg-wtns
      (parameterize ([current-directory arg-wtns])
        (gen-witness raw-res-info r0)))
-
-   (picus:exit exit-code:issues)]
+   (picus:exit exit-code:unsafe)]
   ['safe
-   (picus:log-main "The circuit is properly constrained")]
+   (picus:log-main "The circuit is properly constrained")
+   (picus:exit exit-code:safe)]
   ['unknown
-   (picus:log-main "Cannot determine whether the circuit is properly constrained")])
-
-(when arg-clean?
-  (clean-tmpdir!))))
+   (picus:log-main "Cannot determine whether the circuit is properly constrained")
+   (picus:exit exit-code:unknown)])))

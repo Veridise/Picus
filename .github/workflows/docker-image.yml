@@ -32,8 +32,9 @@ jobs:
           set +e
           racket ./picus.rkt ${{ matrix.param }} | tee result.out
           code=$?
-          if [ $code -ne 0 ] && [ $code -ne 9 ]; then
-            exit $code
+          if [ $code -ne 9 ]; then
+            echo "original exit code: $code"
+            exit 1
           fi
         shell: bash # this ensures that pipefail is set
       - name: test expected result
@@ -55,8 +56,9 @@ jobs:
           set +e
           racket ./picus.rkt --wtns . ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.circom
           code=$?
-          if [ $code -ne 0 ] && [ $code -ne 9 ]; then
-            exit $code
+          if [ $code -ne 9 ]; then
+            echo "original exit code: $code"
+            exit 1
           fi
         shell: bash # this ensures that pipefail is set
       - name: test expected result

@@ -95,8 +95,7 @@
       (with-handlers ([exn:fail? (λ (e)
                                    (picus:log-exception e)
                                    (picus:exit exit-code:tool-failure))])
-        (proc))
-      (picus:exit exit-code:success))
+        (proc)))
     #:logger picus-logger
     'debug ; debug is the lowest level of logging, so this intercepts everything
     #f))
@@ -106,11 +105,14 @@
 ;;                   #:json? boolean?
 ;;                   #:truncate? boolean?
 ;;                   #:level string?
-;;                   (-> any)
+;;                   (-> never/c)
 ;;                   ->
 ;;                   never
 ;; Note that if #:err is the same as #:out, then 'out should be given.
 ;; so that we avoid (potentially) opening the same file twice.
+;;
+;; The proc positional argument must never return. Instead, it should exit with
+;; picus:exit.
 (define (with-framework
           #:json? json?
           #:truncate? truncate?
