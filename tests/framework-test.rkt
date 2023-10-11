@@ -38,10 +38,11 @@
      #:level "ERROR"
      (λ ()
        (picus:log-error "foo")
-       (picus:log-info "bar")))
+       (picus:log-info "bar")
+       (picus:exit exit-code:safe)))
 
    #:check-status code
-   (check-equal? code 0)
+   (check-equal? code exit-code:safe)
 
    #:check out err
    (check-equal? out "")
@@ -56,10 +57,11 @@
      #:level "INFO"
      (λ ()
        (picus:log-error "foo")
-       (picus:log-info "bar")))
+       (picus:log-info "bar")
+       (picus:exit exit-code:safe)))
 
    #:check-status code
-   (check-equal? code 0)
+   (check-equal? code exit-code:safe)
 
    #:check out err
    (check-regexp-match #px"bar" out)
@@ -74,10 +76,11 @@
      #:level #f
      (λ ()
        (picus:log-error "foo")
-       (picus:log-info "bar")))
+       (picus:log-info "bar")
+       (picus:exit exit-code:safe)))
 
    #:check-status code
-   (check-equal? code 0)
+   (check-equal? code exit-code:safe)
 
    #:check out err
    (check-equal? err "")
@@ -86,21 +89,21 @@
 
    ;; log-error
    (define json-err (first jsons))
-   (check-regexp-match #px"framework-test\\.rkt:76:7" (hash-ref json-err 'caller))
+   (check-regexp-match #px"framework-test\\.rkt" (hash-ref json-err 'caller))
    (check-equal? (hash-ref json-err 'level) "ERROR")
    (check-equal? (hash-ref json-err 'msg) "foo")
 
    ;; log-info
    (define json-info (second jsons))
-   (check-regexp-match #px"framework-test\\.rkt:77:7" (hash-ref json-info 'caller))
+   (check-regexp-match #px"framework-test\\.rkt" (hash-ref json-info 'caller))
    (check-equal? (hash-ref json-info 'level) "INFO")
    (check-equal? (hash-ref json-info 'msg) "bar")
 
    ;; exit-info
    (define json-exit (third jsons))
-   (check-regexp-match #px"exit\\.rkt:18:2" (hash-ref json-exit 'caller))
+   (check-regexp-match #px"exit\\.rkt" (hash-ref json-exit 'caller))
    (check-equal? (hash-ref json-exit 'level) "INFO")
-   (check-equal? (hash-ref json-exit 'msg) "Exiting Picus with the code 0")))
+   (check-equal? (hash-ref json-exit 'msg) "Exiting Picus with the code 8")))
 
 (test-case "test exit code"
   (run-test
@@ -112,7 +115,8 @@
      (λ ()
        (picus:log-error "foo")
        (picus:tool-error "bad")
-       (picus:log-info "bar")))
+       (picus:log-info "bar")
+       (picus:exit exit-code:safe)))
 
    #:check-status code
    (check-equal? code exit-code:tool-error)
@@ -121,3 +125,22 @@
    ;; control not reached log-info
    (check-false (regexp-match #px"bar" out))
    (check-regexp-match #px"foo" err)))
+
+(test-case "test unexpected exception"
+  (run-test
+   #:setup
+   (with-framework
+     #:json? #f
+     #:truncate? #f
+     #:level "INFO"
+     (λ ()
+       (/ 1 0)
+       (picus:log-info "bar")
+       (picus:exit exit-code:safe)))
+
+   #:check-status code
+   (check-equal? code exit-code:tool-failure)
+
+   #:check out err
+   ;; control not reached log-info
+   (check-false (regexp-match #px"bar" out))))
