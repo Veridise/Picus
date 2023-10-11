@@ -1,3 +1,5 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
-PLTSTDERR="error none@picus" racket ./picus.rkt "$@"
+# from https://stackoverflow.com/a/24112741/718349
+parent_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
+PLTSTDERR="error none@picus" racket $parent_path/picus.rkt "$@"
