@@ -45,10 +45,13 @@
          level:warning
          level:error
          level:critical
+         level:accounting
+         level:progress
 
          ;; non-standard level
          picus:log-main
          picus:log-progress
+         (rename-out [picus:log-accounting* picus:log-accounting])
 
          define/caller)
 
@@ -159,10 +162,14 @@
 (define-picus-level error 40)
 (define-picus-level critical 50)
 
-;; custom level: progress
-(define-picus-level progress 15)
+;; custom levels
+;; note that in SaaS, accounting has level 25 and progress has level 26
+;; but for standalone application, both levels are very noisy,
+;; so we set them below the info level (20).
+(define-picus-level accounting 15)
+(define-picus-level progress 16)
 
-;; from https://docs.python.org/3/library/logging.html#logging-levels
+;; Mostly from https://docs.python.org/3/library/logging.html#logging-levels
 (define-log-function debug)
 (define-log-function info)
 (define-log-function warning)
@@ -173,6 +180,20 @@
 (define-log-function main #:picus info #:rkt info)
 ;; This is for the algorithm progress.
 (define-log-function progress #:rkt debug)
+;; Accounting
+(define-log-function accounting #:rkt debug)
+
+(define/caller (picus:log-accounting* #:type entry-type
+                                      #:unit [entry-unit "unit"]
+                                      #:value [entry-value 1]
+                                      #:msg [msg ""])
+  #:caller caller
+
+  (picus:log-accounting "~a" msg
+                        #:extra (hash 'accounting (hash 'entry_type entry-type
+                                                        'entry_unit entry-unit
+                                                        'entry_value entry-value)
+                                      'caller caller)))
 
 (define/caller (picus:log-exception e) #:caller caller
-  (picus:log-error "~e" (exn->string e) #:extra (hash 'caller caller)))
+  (picus:log-error "exception: ~e" (exn->string e) #:extra (hash 'caller caller)))
