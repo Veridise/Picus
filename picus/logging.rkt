@@ -138,8 +138,8 @@
 
 (define-syntax-parse-rule (define/caller (name:id . args) #:caller caller:id body ...+)
   (begin
-    (define (internal-fun #:caller caller . args)
-      body ...)
+    (define internal-fun
+      (procedure-rename (λ (#:caller caller . args) body ...) 'name))
     (define-syntax-parse-rule (name . inner-args)
       #:do [(define src (syntax-source this-syntax))
             (define line (syntax-line this-syntax))
