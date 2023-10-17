@@ -273,16 +273,24 @@
 ;    | (downstream queries)
 ;   ...
 (define path-sym (string-replace r1cs-path ".r1cs" ".sym"))
-(define-values (res res-ks res-us readable-res-info raw-res-info)
-  (dpvl:apply-algorithm
-   r0 nwires mconstraints
-   input-set output-set target-set
-   varlist opts defs cnsts
-   alt-varlist alt-defs alt-cnsts
-   unique-set precondition ; prior knowledge row
-   arg-selector arg-prop arg-slv arg-timeout path-sym
-   solve interpret-r1cs
-   optimize-r1cs-p0 expand-r1cs normalize-r1cs optimize-r1cs-p1))
+(picus:log-accounting #:type "started_algorithm")
+(match-define-values ((list res res-ks res-us readable-res-info raw-res-info) cpu real gc)
+  (time-apply (λ ()
+                (dpvl:apply-algorithm
+                 r0 nwires mconstraints
+                 input-set output-set target-set
+                 varlist opts defs cnsts
+                 alt-varlist alt-defs alt-cnsts
+                 unique-set precondition ; prior knowledge row
+                 arg-selector arg-prop arg-slv arg-timeout path-sym
+                 solve interpret-r1cs
+                 optimize-r1cs-p0 expand-r1cs normalize-r1cs optimize-r1cs-p1))
+              '()))
+(picus:log-accounting #:type "finished_algorithm")
+(picus:log-accounting #:type "algorithm_time"
+                      #:value (list cpu real gc)
+                      #:unit "(ms, ms, ms)"
+                      #:msg "Time spent for main algorithm (cpu, real, gc)")
 (picus:log-debug "raw map: ~a" raw-res-info)
 (picus:log-debug "final unknown set ~e" res-us)
 (picus:log-debug "~a uniqueness: ~a" (if arg-strong "strong" "weak") res)
@@ -304,6 +312,7 @@
 
 (match res
   ['unsafe
+   (picus:log-accounting #:type "finished_with_cex")
    (picus:log-main "The circuit is underconstrained")
    (picus:log-main "Counterexample:")
    (match-define (list in out1 out2 other1 other2)
@@ -320,8 +329,10 @@
        (gen-witness raw-res-info r0)))
    (picus:exit exit-code:unsafe)]
   ['safe
+   (picus:log-accounting #:type "finished_with_guarantee")
    (picus:log-main "The circuit is properly constrained")
    (picus:exit exit-code:safe)]
   ['unknown
+   (picus:log-accounting #:type "finished_wo_cex")
    (picus:log-main "Cannot determine whether the circuit is properly constrained")
    (picus:exit exit-code:unknown)])))
