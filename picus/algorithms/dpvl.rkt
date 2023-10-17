@@ -146,6 +146,10 @@
                      'skip]))
   (values solved? (cdr res)))
 
+(define total-cpu 0)
+(define total-real 0)
+(define total-gc 0)
+
 ; select and solve
 ; returns:
 ;   - (values 'normal ks us info)
@@ -161,7 +165,12 @@
     ; else, set not empty, move forward
     [else
      (define sid (apply-selector uspool :weight-map))
-     (define-values (solved? info) (dpvl-solve ks us sid))
+     (match-define-values
+      ((list solved? info) cpu real gc)
+      (time-apply (λ () (dpvl-solve ks us sid)) '()))
+     (set! total-cpu (+ total-cpu cpu))
+     (set! total-real (+ total-real real))
+     (set! total-gc (+ total-gc gc))
      ; send feedback to selector
      (selector-feedback sid solved?)
      (cond
@@ -351,6 +360,10 @@
          ; this is required for the cex module to finalize a non-relevant part, which only requires a trivial model
          #:skip-query? [skip-query? #f])
 
+  (set! total-cpu 0)
+  (set! total-real 0)
+  (set! total-gc 0)
+
   ; first load in all global variables
   (set! :r0 r0)
   (set! :nwires nwires)
@@ -486,6 +499,11 @@
 
   ; invoke the algorithm iteration
   (define-values (ret0 rks rus info) (dpvl-iterate known-set unknown-set))
+
+  (picus:log-accounting #:type "solving_time"
+                        #:value (list total-cpu total-real total-gc)
+                        #:unit "(ms, ms, ms)"
+                        #:msg "Time spent for solving (cpu, real, gc)")
 
   ; always skip x0, since it is hard-coded to 1 in the algorithm, but
   ; the actual value here might be different, which could be misleading.
