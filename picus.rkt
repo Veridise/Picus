@@ -321,8 +321,8 @@
    (format-cex "inputs" in)
    (format-cex "first possible outputs" out1 #:diff out2)
    (format-cex "second possible outputs" out2 #:diff out1)
-   (format-cex "first internal variables" other1)
-   (format-cex "second internal variables" other2)
+   (format-cex "first internal variables" other1 #:diff other2)
+   (format-cex "second internal variables" other2 #:diff other1)
 
    (when arg-wtns
      (parameterize ([current-directory arg-wtns])
