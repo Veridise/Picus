@@ -292,6 +292,7 @@
                       #:unit "(ms, ms, ms)"
                       #:msg "Time spent for main algorithm (cpu, real, gc)")
 (picus:log-debug "raw map: ~a" raw-res-info)
+(picus:log-debug "final known set ~e" res-ks)
 (picus:log-debug "final unknown set ~e" res-us)
 (picus:log-debug "~a uniqueness: ~a" (if arg-strong "strong" "weak") res)
 
