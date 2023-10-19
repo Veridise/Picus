@@ -99,7 +99,7 @@ jobs:
   publish-docker:
     needs: [wtns-test, configuration-test, main-test, misc-test]
     name: "Publish Docker image to DockerHub"
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.repository == 'Veridise/picus-private'
     runs-on: ubuntu-latest
     steps:
       - name: Set up Docker Buildx
@@ -107,8 +107,8 @@ jobs:
       - name: Login to DockerHub
         uses: docker/login-action@v2
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          username: ${{ secrets.SAAS_DOCKERHUB_USERNAME }}
+          password: ${{ secrets.SAAS_DOCKERHUB_TOKEN }}
       - name: Build and push to DockerHub
         uses: docker/build-push-action@v3
         with:
