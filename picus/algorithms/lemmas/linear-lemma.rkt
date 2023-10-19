@@ -13,9 +13,10 @@
 ; input is the *normalized main constraint part* of r1cs ast
 ;   - main constraints is the `cnsts part (r1cs:rcmds) from parse-r1cs
 ;
-; returns a (listof (cons/c mutable-set? mutable-set?)):
-;   where each pair item in the list corresponds to a constraint.
-;   The pair consists of:
+; returns a (listof (list/c integer? mutable-set? mutable-set?)):
+;   where each tuple item in the list corresponds to a constraint.
+;   The tuple consists of:
+;   - i: index
 ;   - deducible-vars: a set of variables that can be determined as unique in the current constraint
 ;   - nonlinear-vars: a set of variables that are non-linear in the current constraint
 ;
@@ -29,18 +30,20 @@
 ;     even if knowing y and k (due to field mul)
 (define (compute-linear-clauses arg-cnsts [arg-indexonly #f])
   (for/list ([p (r1cs:rcmds-vs arg-cnsts)]
+             [i (in-naturals)]
              #:do [(define all-vars (r1cs:get-assert-variables p arg-indexonly))
                    (define nonlinear-vars (r1cs:get-assert-variables/nonlinear p arg-indexonly))
                    ; (note) you can't use linears directly, because one var could be both linear and non-linear
                    ;        in this case, it's still non-linear in the current constraint
-                   (define deducible-vars (set-subtract all-vars nonlinear-vars))]
+                   (define deducible-vars (set-subtract all-vars nonlinear-vars))
+                   (picus:log-debug "[linear lemma] ~a: ~a | ~a" i deducible-vars nonlinear-vars)]
              #:unless (set-empty? deducible-vars))
-    (cons (set-copy deducible-vars) (set-copy nonlinear-vars))))
+    (list i (set-copy deducible-vars) (set-copy nonlinear-vars))))
 
 (define (compute-weight-map linear-clauses)
   (define res (make-hash))
   (for ([clause (in-list linear-clauses)])
-    (match-define (cons deducible-vars nonlinear-vars) clause)
+    (match-define (list _ deducible-vars nonlinear-vars) clause)
     ;; NOTE(sorawee): I think this is not optimal. We should revisit this.
     (define len-deducible (set-count deducible-vars))
     (for ([var (in-set deducible-vars)])
@@ -63,11 +66,12 @@
       [else
        ;; remove all known variables from linear-clauses
        (for ([pair (in-list linear-clauses)])
-         (match-define (cons deducible-vars nonlinear-vars) pair)
+         (match-define (list i deducible-vars nonlinear-vars) pair)
          ;; make a copy via set->list so that we can remove items froim the set
          ;; while iterating on it.
          (for ([v (in-list (set->list deducible-vars))]
                #:when (set-member? working-set v))
+           (picus:log-debug "[linear lemma] successful propagation of ~a on clause ~a" v i)
            (set-remove! deducible-vars v))
 
          (for ([v (in-list (set->list nonlinear-vars))]
@@ -77,7 +81,7 @@
        ;; filter out useless clauses
        (define new-linear-clauses
          (for/list ([pair (in-list linear-clauses)]
-                   #:do [(match-define (cons deducible-vars _) pair)]
+                   #:do [(match-define (list _ deducible-vars _) pair)]
                    #:unless (set-empty? deducible-vars))
            pair))
 
@@ -85,11 +89,11 @@
        ;; since the next iteration would remove them anyway.
        (define Δinferred
          (for/set ([pair (in-list new-linear-clauses)]
-                   #:do [(match-define (cons deducible-vars nonlinear-vars) pair)]
+                   #:do [(match-define (list i deducible-vars nonlinear-vars) pair)]
                    #:when (= 1 (set-count deducible-vars))
                    #:when (set-empty? nonlinear-vars))
-           (set-first deducible-vars)))
-
-       (picus:log-debug "[linear lemma] adding ~e" Δinferred)
+           (define v (set-first deducible-vars))
+           (picus:log-debug "[linear lemma] deduced ~a from clause ~a" v i)
+           v))
 
        (loop new-linear-clauses (set-union inferred Δinferred) Δinferred)])))
