@@ -36,12 +36,12 @@ RUN add-apt-repository -y ppa:plt/racket && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# build rust & circom 2.0.7
+# build rust & circom 2.1.6
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
     source "$HOME/.cargo/env" && \
     git clone https://github.com/iden3/circom.git && \
     cd circom/ && \
-    git checkout v2.0.7 && \
+    git checkout v2.1.6 && \
     cargo build --release && \
     cargo install --path circom && \
     cd .. && rm -rf circom/
