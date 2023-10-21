@@ -1,0 +1,4 @@
+fixed:
+  - Fix Docker image building by switching to path context
+    (as opposed to the Git context which has issues with
+    private Git submodules).
