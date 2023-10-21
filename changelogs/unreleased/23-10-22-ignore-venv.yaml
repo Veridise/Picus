@@ -1,0 +1,2 @@
+changed:
+  - Update gitignore file to ignore .venv for release_helpers
