@@ -1,0 +1,4 @@
+changed:
+  - Suppress ANSI code in JSON logging for now,
+    since the console shows the code raw,
+    which is difficult to read.

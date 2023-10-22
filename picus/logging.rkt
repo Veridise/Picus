@@ -62,7 +62,8 @@
          (for-syntax racket/base
                      racket/syntax
                      racket/path
-                     racket/runtime-path))
+                     racket/runtime-path)
+         "ansi.rkt")
 
 (begin-for-syntax
   (define-runtime-path picus-root ".."))
@@ -125,7 +126,7 @@
   #:with level-id (format-id #'picus-level "level:~a" #'picus-level)
 
   #:with picus-log-id (format-id #'name "picus:log-~a" #'name)
-  (define/caller (picus-log-id text-msg #:extra [extra (hash)] #:json-msg [json-msg text-msg] . args)
+  (define/caller (picus-log-id text-msg #:extra [extra (hash)] #:json-msg [json-msg (strip-ansi text-msg)] . args)
     #:caller caller
     (log-message picus-logger
                  'rkt-level
