@@ -17,6 +17,9 @@ on:
             - closed
         branches:
             - 'v[0-9]+.[0-9]+.[0-9]+-pre-release'
+    push:
+      branches: 
+        - sas-368-release-workflows
         
  
 jobs:
