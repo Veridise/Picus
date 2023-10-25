@@ -3,6 +3,9 @@ name: Docker Image CI
 on:
   push:
     branches: [ "main" ]
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-rc[0-9]+'
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
@@ -100,6 +103,8 @@ jobs:
     needs: [wtns-test, configuration-test, main-test, misc-test]
     name: "Publish Docker image to DockerHub"
     if: github.event_name == 'push' && github.repository == 'Veridise/picus-private'
+    env: 
+      IMAGE_TAG: git-latest
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -114,6 +119,11 @@ jobs:
         with:
           username: ${{ secrets.SAAS_DOCKERHUB_USERNAME }}
           password: ${{ secrets.SAAS_DOCKERHUB_TOKEN }}
+
+      - name: Setup docker tag from ref-name
+        if: ${{ github.ref_name != 'main' }}
+        run: echo "IMAGE_TAG=$( echo ${GITHUB_REF_NAME} )" >> $GITHUB_ENV
+
       - name: Build and push to DockerHub
         uses: docker/build-push-action@v3
         with:
@@ -121,4 +131,4 @@ jobs:
           push: true
           file: Dockerfile
           platforms: linux/amd64
-          tags: veridise/picus:git-latest, veridise/picus:git-${{ github.sha }}
+          tags: veridise/picus:${{ env.IMAGE_TAG }}, veridise/picus:git-${{ github.sha }}

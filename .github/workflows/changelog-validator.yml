@@ -1,0 +1,12 @@
+name: Changelog validator
+on:
+  push:
+    branches-ignore:
+      - main
+      - 'v[0-9]+.[0-9]+.[0-9]+-pre-release'
+
+
+jobs:
+  call-workflow-changelog-validate:
+    uses: Veridise/release_helpers/.github/workflows/changelog-validator.yml@main
+    secrets: inherit

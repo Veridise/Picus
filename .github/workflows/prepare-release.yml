@@ -1,0 +1,39 @@
+name: Prepare release
+
+on:
+    # Allows you to run this workflow manually from the Actions tab or via the api
+    workflow_dispatch:
+        inputs:
+            release_version:
+                description: "Release version to prepare"
+                required: true
+                type: string
+            checkout_from:
+                description: "Git ref to checkout from. It could be a branch, a tag or a commit hash"
+                required: true
+                type: string
+    pull_request:
+        types:
+            - closed
+        branches:
+            - 'v[0-9]+.[0-9]+.[0-9]+-pre-release'
+        
+ 
+jobs:
+  call-workflow-prepare-release-by-dispatch:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    uses: Veridise/release_helpers/.github/workflows/prepare-release.yml@main
+    with:
+      release_version: ${{ inputs.release_version }}
+      checkout_from: ${{ inputs.checkout_from }}
+    secrets: inherit
+
+  call-workflow-prepare-release-by-PR:
+    if: github.event.pull_request.merged == true
+    uses: Veridise/release_helpers/.github/workflows/prepare-release.yml@main
+    with:
+      # When the release candidate in created by PR merge, release version is extracted in the 
+      # called workflow from target branch name
+      release_version: "intentionally undefined"
+      checkout_from: ${{ github.base_ref }}
+    secrets: inherit  
