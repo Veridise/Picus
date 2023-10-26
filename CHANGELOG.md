@@ -1,4 +1,4 @@
-## v1.0.0-rc1 - 2023-10-26
+## v1.0.0 - 2023-10-26
 ### Changed
 - Changed the supported Circom version from 2.0.7 to 2.1.6.
 - Suppress ANSI code in JSON logging for now, since the console shows the code raw, which is difficult to read.
