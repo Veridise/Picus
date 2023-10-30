@@ -500,10 +500,18 @@
   ; invoke the algorithm iteration
   (define-values (ret0 rks rus info) (dpvl-iterate known-set unknown-set))
 
-  (picus:log-accounting #:type "solving_time"
-                        #:value (list total-cpu total-real total-gc)
-                        #:unit "(ms, ms, ms)"
-                        #:msg "Time spent for solving (cpu, real, gc)")
+  (picus:log-accounting #:type "solving_time_cpu"
+                        #:value total-cpu
+                        #:unit "ms"
+                        #:msg "Time spent for solving (cpu)")
+  (picus:log-accounting #:type "solving_time_real"
+                        #:value total-real
+                        #:unit "ms"
+                        #:msg "Time spent for solving (real)")
+  (picus:log-accounting #:type "solving_time_gc"
+                        #:value total-gc
+                        #:unit "ms"
+                        #:msg "Time spent for solving (gc)")
 
   ; always skip x0, since it is hard-coded to 1 in the algorithm, but
   ; the actual value here might be different, which could be misleading.
