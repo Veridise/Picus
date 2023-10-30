@@ -287,10 +287,18 @@
                  optimize-r1cs-p0 expand-r1cs normalize-r1cs optimize-r1cs-p1))
               '()))
 (picus:log-accounting #:type "finished_algorithm")
-(picus:log-accounting #:type "algorithm_time"
-                      #:value (list cpu real gc)
-                      #:unit "(ms, ms, ms)"
-                      #:msg "Time spent for main algorithm (cpu, real, gc)")
+(picus:log-accounting #:type "algorithm_time_cpu"
+                      #:value cpu
+                      #:unit "ms"
+                      #:msg "Time spent for main algorithm (cpu)")
+(picus:log-accounting #:type "algorithm_time_real"
+                      #:value real
+                      #:unit "ms"
+                      #:msg "Time spent for main algorithm (real)")
+(picus:log-accounting #:type "algorithm_time_gc"
+                      #:value gc
+                      #:unit "ms"
+                      #:msg "Time spent for main algorithm (gc)")
 (picus:log-debug "raw map: ~a" raw-res-info)
 (picus:log-debug "final known set ~e" res-ks)
 (picus:log-debug "final unknown set ~e" res-us)

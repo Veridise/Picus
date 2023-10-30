@@ -1,0 +1,2 @@
+fixed:
+  - Fixed the format of accounting logging in the --json mode.
