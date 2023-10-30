@@ -191,9 +191,9 @@
   #:caller caller
 
   (picus:log-accounting "~a" msg
-                        #:extra (hash 'accounting (hash 'entry_type entry-type
-                                                        'entry_unit entry-unit
-                                                        'entry_value entry-value)
+                        #:extra (hash 'entry_type entry-type
+                                      'entry_unit entry-unit
+                                      'entry_value entry-value
                                       'caller caller)))
 
 (define/caller (picus:log-exception e) #:caller caller
