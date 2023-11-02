@@ -1,3 +1,7 @@
+## v1.0.2 - 2023-11-02
+### Fixed
+- Fixed ANSI codes not stripped away correctly
+
 ## v1.0.1 - 2023-11-01
 ### Fixed
 - Fixed the format of accounting logging in the --json mode.
