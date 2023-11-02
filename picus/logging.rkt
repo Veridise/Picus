@@ -126,7 +126,7 @@
   #:with level-id (format-id #'picus-level "level:~a" #'picus-level)
 
   #:with picus-log-id (format-id #'name "picus:log-~a" #'name)
-  (define/caller (picus-log-id text-msg #:extra [extra (hash)] #:json-msg [json-msg (strip-ansi text-msg)] . args)
+  (define/caller (picus-log-id text-msg #:extra [extra (hash)] #:json-msg [json-msg text-msg] . args)
     #:caller caller
     (log-message picus-logger
                  'rkt-level
@@ -136,7 +136,7 @@
                  ;; since we want the user to be able to override the information
                  (hash-union extra (hash 'caller caller
                                          'level level-id
-                                         'msg (apply format (do-truncate json-msg) args))
+                                         'msg (strip-ansi (apply format (do-truncate json-msg) args)))
                              #:combine (λ (left _right) left))
                  #f)))
 
