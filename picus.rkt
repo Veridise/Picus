@@ -231,17 +231,12 @@
 ; parse original r1cs
 (picus:log-progress "parsing original r1cs...")
 ;; invariant: (length varlist) = nwires
-(define-values (varlist opts defs cnsts) (parse-r1cs r0 '())) ; interpret the constraint system
+(define-values (varlist opts defs cnsts) (parse-r1cs r0 "x")) ; interpret the constraint system
 (picus:log-debug "varlist: ~e" varlist)
 ; parse alternative r1cs
-(define alt-varlist
-  (for/list ([i (in-range nwires)] [var (in-list varlist)])
-    (if (not (utils:contains? input-list i))
-        (format "y~a" i)
-        var)))
-(picus:log-debug "alt-varlist ~e" alt-varlist)
 (picus:log-progress "parsing alternative r1cs...")
-(define-values (_ __ alt-defs alt-cnsts) (parse-r1cs r0 alt-varlist))
+(define-values (alt-varlist __ alt-defs alt-cnsts) (parse-r1cs r0 "y"))
+(picus:log-debug "alt-varlist ~e" alt-varlist)
 
 (picus:log-progress "configuring precondition...")
 (define-values (unique-set precondition)
