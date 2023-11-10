@@ -71,7 +71,6 @@
          ;; while iterating on it.
          (for ([v (in-list (set->list deducible-vars))]
                #:when (set-member? working-set v))
-           (picus:log-debug "[linear lemma] successful propagation of ~a on clause ~a" v i)
            (set-remove! deducible-vars v))
 
          (for ([v (in-list (set->list nonlinear-vars))]
