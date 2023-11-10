@@ -301,6 +301,15 @@
                output2-info
                other1-info
                other2-info)]
+      ;; skip y<number-id> when <number-id> is in the input set,
+      ;; since it's the same as x<number-id>
+      [(pregexp #px"^y(\\d+)$" (list _ (app string->number n)))
+       #:when (set-member? input-set n)
+       (values input-info
+               output1-info
+               output2-info
+               other1-info
+               other2-info)]
       ;; matching for a variable in the output set. By construction,
       ;; this variable is in the form x<number-id> or y<number-id>,
       ;; where x indicates that it is in the first set
@@ -403,19 +412,14 @@
   (set! :extcnsts extcnsts)
   (set! :skip-query? skip-query?)
 
-  (define alt-varset (list->set :alt-varlist))
-
-  ; keep track of index of varlist (not alt-varlist since that's incomplete)
   (define known-set
-    (for/set ([var (in-list :varlist)]
-              [i (in-naturals)]
-              #:when (set-member? alt-varset var))
+    (for/set ([i (in-range :nwires)]
+              #:when (set-member? :input-set i))
       i))
 
   (define unknown-set
-    (for/set ([var (in-list :varlist)]
-              [i (in-naturals)]
-              #:unless (set-member? alt-varset var))
+    (for/set ([i (in-range :nwires)]
+              #:unless (set-member? :input-set i))
       i))
 
 
@@ -513,10 +517,11 @@
                         #:unit "ms"
                         #:msg "Time spent for solving (gc)")
 
-  ; always skip x0, since it is hard-coded to 1 in the algorithm, but
+  ; always skip x0 and y0, since they are hard-coded to 1 in the algorithm, but
   ; the actual value here might be different, which could be misleading.
   (when (hash? info)
-    (hash-remove! info "x0"))
+    (hash-remove! info "x0")
+    (hash-remove! info "y0"))
 
   (define partitioned-info (sort-vars (partition-vars info input-set output-set)))
 
