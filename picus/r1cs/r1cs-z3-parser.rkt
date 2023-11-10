@@ -8,11 +8,10 @@
 ; turns r1cs binary form into standard form
 ; arguments:
 ;   - arg-r1cs: r1cs binary form instance using the struct r1cs grammar
-;   - arg-varlist: symbols (in string) to use, usually in "x?" form
-;                  when parsing alt constraints, non-input symbols are replaced with "y?" series
+;   - prefix :: (or/c "x" "y")
 ; returns:
 ;   - (values varlist options declarations constraints)
-(define (parse-r1cs arg-r1cs arg-varlist)
+(define (parse-r1cs arg-r1cs prefix)
 
   ; a list of options
   (define raw-opts (list (r1cs:rlogic "QF_NIA")))
@@ -23,38 +22,23 @@
   ; first create a list of all symbolic variables according to nwires
   (define nwires (r1cs:get-nwires arg-r1cs))
   ; strictly align with wid
-  (define varvec
-    (match arg-varlist
-      ['()
-       ; create fresh new
-       (for/vector ([i (in-range nwires)]) (format "x~a" i))]
-      [_
-       ; use existing one
-       (list->vector arg-varlist)]))
+  (define varvec (for/vector ([i (in-range nwires)]) (format "~a~a" prefix i)))
 
   ; add declarations for variables
   (set! raw-decls
         (append raw-decls
                 (list (r1cs:rcmt "======== declaration constraints ========"))
                 (for/list ([x (in-vector varvec)])
-                  (if (and (not (null? arg-varlist)) (string-prefix? x "x"))
-                      ; provided list with already defined x, skip
-                      (r1cs:rcmt (format "~a: already defined" x))
-                      ; otherwise you need to define this variable
-                      (r1cs:rdef (r1cs:rvar (format "~a" x)) (r1cs:rtype "Int"))))))
+                  (r1cs:rdef (r1cs:rvar x) (r1cs:rtype "Int")))))
 
   ; add range constraints for declared variables
   (set! raw-decls
         (append raw-decls
                 (list (r1cs:rcmt "======== range constraints ========"))
                 (for/list ([x (in-vector varvec)])
-                  (if (and (not (null? arg-varlist)) (string-prefix? x "x"))
-                      ; provided list with already defined x, skip
-                      (r1cs:rcmt (format "~a: already defined" x))
-                      ; otherwise you need to define this variable
-                      (r1cs:rassert (r1cs:rand (list
-                                                (r1cs:rleq (r1cs:rint 0) (r1cs:rvar (format "~a" x)))
-                                                (r1cs:rlt (r1cs:rvar (format "~a" x)) (r1cs:rint config:p)))))))))
+                  (r1cs:rassert (r1cs:rand (list
+                                            (r1cs:rleq (r1cs:rint 0) (r1cs:rvar x))
+                                            (r1cs:rlt (r1cs:rvar x) (r1cs:rint config:p))))))))
 
   ; then start creating constraints
   (define m (r1cs:get-mconstraints arg-r1cs))
