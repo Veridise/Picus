@@ -6,13 +6,14 @@
 
 (require racket/match
          syntax/parse/define
-         (prefix-in tokamak: "../tokamak.rkt")
+         racket/string
+         "../exit.rkt"
          (prefix-in r1cs: "./r1cs-grammar.rkt")
          (for-syntax racket/base))
 
 (define (format-op op proc args)
   (match args
-    ['() (tokamak:exit "empty operation: ~a" op)]
+    ['() (picus:tool-error "empty operation: ~a" op)]
     [(list x) (proc x)]
     [(cons x xs)
      (display "(")
@@ -65,5 +66,5 @@
 
            [(r1cs:rvar v) (display v)]
            [(r1cs:rtype v) (display v)]
-           [_ (tokamak:exit "not supported: ~a" arg-r1cs)])))))
+           [_ (picus:tool-error "not supported: ~a" arg-r1cs)])))))
   (get-output-string p))

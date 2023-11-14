@@ -9,15 +9,11 @@
 ;   - replace x0 with 1
 ;   - partial evaluation: compute concrete results, e.g., 0*0 => 0
 ;     - (fixme) current only modify 0*...*x to 0
-(require
-    (prefix-in tokamak: "../tokamak.rkt")
-    (prefix-in utils: "../utils.rkt")
-    (prefix-in config: "../config.rkt")
-    (prefix-in r1cs: "../r1cs/r1cs-grammar.rkt")
-)
-(provide (rename-out
-    [optimize-r1cs optimize-r1cs]
-))
+(require "../exit.rkt"
+         (prefix-in utils: "../utils.rkt")
+         (prefix-in config: "../config.rkt")
+         (prefix-in r1cs: "../r1cs/r1cs-grammar.rkt"))
+(provide optimize-r1cs)
 
 (define (is-rint-zero x)
     (if (r1cs:rint? x)
@@ -130,7 +126,4 @@
                 [else (r1cs:rmul new-vs)]
             )
         ]
-
-        [_ (tokamak:exit "not supported: ~a" arg-r1cs)]
-    )
-)
+        [_ (picus:tool-error "not supported: ~a" arg-r1cs)]))
