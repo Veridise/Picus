@@ -1,0 +1,5 @@
+changed:
+  - Refactored the constraints so that comments are placed
+    at the very final step. This allows the modular framework
+    to directly manipulate constraints without having to offset
+    the positions.

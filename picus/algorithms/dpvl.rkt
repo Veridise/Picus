@@ -22,9 +22,7 @@
 (define selector-init null)
 
 ; problem pack, needs to be set and initialized by apply- function
-(define :r0 null)
 (define :nwires null)
-(define :mconstraints null)
 (define :input-set null)
 (define :output-set null)
 (define :target-set null)
@@ -355,7 +353,7 @@
 ;   - (values 'unsafe ks us info)
 ;   - (values 'unknown ks us info)
 (define (apply-algorithm
-         r0 nwires mconstraints
+         nwires
          input-set output-set target-set
          varlist opts defs cnsts
          alt-varlist alt-defs alt-cnsts
@@ -374,9 +372,7 @@
   (set! total-gc 0)
 
   ; first load in all global variables
-  (set! :r0 r0)
   (set! :nwires nwires)
-  (set! :mconstraints mconstraints)
   (set! :input-set input-set)
   (set! :output-set output-set)
   (set! :target-set target-set)
@@ -471,13 +467,17 @@
                       (r1cs:rcmt "======== original block ========")
                       (r1cs:rcmt "================================")))
          :defs
+         (r1cs:rcmds (list (r1cs:rcmt "======== main constraints ========")))
          :p1cnsts
+         (r1cs:rcmds (list (r1cs:rassert (r1cs:req (r1cs:rint 1) (r1cs:rvar (format "x0"))))))
          (r1cs:rcmds (list
                       (r1cs:rcmt "===================================")
                       (r1cs:rcmt "======== alternative block ========")
                       (r1cs:rcmt "===================================")))
          :alt-defs
+         (r1cs:rcmds (list (r1cs:rcmt "======== main constraints ========")))
          :alt-p1cnsts
+         (r1cs:rcmds (list (r1cs:rassert (r1cs:req (r1cs:rint 1) (r1cs:rvar (format "y0"))))))
          (r1cs:rcmds (list
                       (r1cs:rcmt "====================================")
                       (r1cs:rcmt "======== precondition block ========")
