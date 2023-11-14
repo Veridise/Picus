@@ -21,28 +21,20 @@
      (r1cs:rraw "(set-info :category \"crafted\")")
      (r1cs:rraw (format "(define-sort F () (_ FiniteField ~a))" config:p))))
 
-  (define raw-cnsts '()) ; a list of commands
-  (define raw-decls '()) ; a list of variable declarations
-
   ; first create a list of all symbolic variables according to nwires
   (define nwires (r1cs:get-nwires arg-r1cs))
   ; strictly align with wid
   (define varvec (for/vector ([i nwires]) (format "~a~a" prefix i)))
 
   ; add declarations for variables
-  (set! raw-decls
-        (append raw-decls
-                (list (r1cs:rcmt "======== declaration constraints ========"))
-                (for/list ([x (in-vector varvec)])
-                  (r1cs:rdef (r1cs:rvar x) (r1cs:rtype "F")))))
-
-  ; then start creating constraints
-  (define m (r1cs:get-mconstraints arg-r1cs))
-  (define rconstraints (r1cs:get-constraints arg-r1cs)) ; r1cs constraints
+  (define raw-decls
+    (append (list (r1cs:rcmt "======== declaration constraints ========"))
+            (for/list ([x (in-vector varvec)])
+              (r1cs:rdef (r1cs:rvar x) (r1cs:rtype "F")))))
 
   ; symbolic constraints
   (define sconstraints
-    (for/list ([cnst rconstraints])
+    (for/list ([cnst (r1cs:get-constraints arg-r1cs)])
 
       ; get block
       (define curr-block-a (r1cs:constraint-a cnst))
@@ -50,17 +42,14 @@
       (define curr-block-c (r1cs:constraint-c cnst))
 
       ; process block a
-      (define nnz-a (r1cs:constraint-block-nnz curr-block-a))
       (define wids-a (r1cs:constraint-block-wids curr-block-a))
       (define factors-a (r1cs:constraint-block-factors curr-block-a))
 
       ; process block b
-      (define nnz-b (r1cs:constraint-block-nnz curr-block-b))
       (define wids-b (r1cs:constraint-block-wids curr-block-b))
       (define factors-b (r1cs:constraint-block-factors curr-block-b))
 
       ; process block c
-      (define nnz-c (r1cs:constraint-block-nnz curr-block-c))
       (define wids-c (r1cs:constraint-block-wids curr-block-c))
       (define factors-c (r1cs:constraint-block-factors curr-block-c))
 
@@ -96,21 +85,11 @@
 
       ret-cnst))
 
-  ; update smt with comments and fixed constraints
-  (set! raw-cnsts
-        (append
-         raw-cnsts
-         (list (r1cs:rcmt "======== main constraints ========"))
-         sconstraints
-         (list (r1cs:rassert
-                (r1cs:req
-                 (r1cs:rint 1) (r1cs:rvar (format "~a" (vector-ref varvec 0))))))))
-
   (values
    (vector->list varvec)
    (r1cs:rcmds raw-opts)
    (r1cs:rcmds raw-decls)
-   (r1cs:rcmds raw-cnsts)))
+   (r1cs:rcmds sconstraints)))
 
 
 ; expands standard r1cs into terms++ form (sum of terms)

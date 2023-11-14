@@ -272,7 +272,7 @@
 (match-define-values ((list res res-ks res-us readable-res-info raw-res-info) cpu real gc)
   (time-apply (λ ()
                 (dpvl:apply-algorithm
-                 r0 nwires mconstraints
+                 nwires
                  input-set output-set target-set
                  varlist opts defs cnsts
                  alt-varlist alt-defs alt-cnsts
