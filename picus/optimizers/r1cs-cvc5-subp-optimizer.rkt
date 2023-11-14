@@ -2,15 +2,11 @@
 ; (note) this is applied in optimization phase 1
 ; this contains the following optimizations:
 ;   - add p related definition and replace p
-(require
-    (prefix-in tokamak: "../tokamak.rkt")
-    (prefix-in utils: "../utils.rkt")
-    (prefix-in config: "../config.rkt")
-    (prefix-in r1cs: "../r1cs/r1cs-grammar.rkt")
-)
-(provide (rename-out
-    [optimize-r1cs optimize-r1cs]
-))
+(require "../exit.rkt"
+         (prefix-in utils: "../utils.rkt")
+         (prefix-in config: "../config.rkt")
+         (prefix-in r1cs: "../r1cs/r1cs-grammar.rkt"))
+(provide optimize-r1cs)
 
 (define (optimize-r1cs arg-r1cs pdef?)
     (match arg-r1cs
@@ -107,6 +103,4 @@
         [(r1cs:radd vs) (r1cs:radd (for/list ([v vs]) (optimize-r1cs v pdef?)))]
         [(r1cs:rmul vs) (r1cs:rmul (for/list ([v vs]) (optimize-r1cs v pdef?)))]
 
-        [_ (tokamak:exit "not supported: ~a" arg-r1cs)]
-    )
-)
+        [_ (picus:tool-error "not supported: ~a" arg-r1cs)]))

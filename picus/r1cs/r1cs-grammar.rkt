@@ -276,7 +276,7 @@
             [(rmul vs)
              (define vv (filter (lambda (x) (rvar? x)) vs))
              (if (<= (length vv) 1)
-                 ; less than 1 var, this is just linear
+                 ; less than or equal to 1 var, this is just linear
                  '()
                  ; more than 1 var, all involved vars are non-linear
                  (append* (for/list ([v vs]) (do v #t))))]
