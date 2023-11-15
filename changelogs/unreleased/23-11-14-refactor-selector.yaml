@@ -1,0 +1,5 @@
+changed:
+  - Refactored selector to use the Racket class/object system.
+    This means we only need to pick a selector object
+    instead of passing a selector string and
+    obtaining individual methods separately from the string.

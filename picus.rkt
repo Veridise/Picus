@@ -1,6 +1,6 @@
 #lang racket
 ; common require
-(require (prefix-in utils: "./picus/utils.rkt")
+(require racket/runtime-path
          (prefix-in config: "./picus/config.rkt")
          (prefix-in solver: "./picus/solver.rkt")
          (prefix-in r1cs: "./picus/r1cs/r1cs-grammar.rkt")
@@ -14,6 +14,8 @@
          "picus/exit.rkt"
          "picus/gen-witness.rkt")
 
+(define-runtime-path selector-path "picus/algorithms/selector.rkt")
+
 ; =====================================
 ; ======== commandline parsing ========
 ; =====================================
@@ -25,7 +27,7 @@
 (define arg-clean? #t)
 (define arg-timeout 5000)
 (define arg-solver "cvc5")
-(define arg-selector "counter")
+(define arg-selector (dpvl:current-selector))
 (define arg-precondition null)
 (define arg-prop #t)
 (define arg-slv #t)
@@ -38,6 +40,18 @@
 
 (define (r1cs-file? path)
   (string-suffix? path ".r1cs"))
+
+(define (get-exports path)
+  (define-values (exports _) (module->exports path))
+  (for/list ([export (in-list (dict-ref exports 0))])
+    (symbol->string (first export))))
+
+(define (load-from-module path name fmt)
+  (dynamic-require path (string->symbol name)
+                   (λ () (picus:user-error fmt (string-join (get-exports path) " | ")))))
+
+(define (gen-help-from-module path fmt def)
+  (format fmt (string-join (get-exports path) " | ") def))
 
 (define source
 (command-line
@@ -60,10 +74,11 @@
                (cond
                  [(set-member? (set "z3" "cvc5" "cvc4") p-solver) (set! arg-solver p-solver)]
                  [else (picus:user-error "solver needs to be either z3 or cvc5")])]
- [("--selector") p-selector "selector to use: first | counter (default: counter)"
-                 (match p-selector
-                   [(or "first" "counter") (set! arg-selector p-selector)]
-                   [_ (picus:user-error "selector needs to be either first or counter")])]
+ [("--selector") p-selector
+                 [(gen-help-from-module selector-path
+                                        "selector to use: ~a (default: ~a)"
+                                        (send arg-selector get-name))]
+                 (set! arg-selector (load-from-module selector-path p-selector "valid selector: ~a"))]
  [("--precondition") p-precondition "path to precondition json (default: none)"
                      (set! arg-precondition p-precondition)]
  [("--noprop") "disable propagation (default: false / propagation on)"
@@ -190,7 +205,7 @@
 (picus:log-debug "r1cs file: ~a" r1cs-path)
 (picus:log-debug "timeout: ~a" arg-timeout)
 (picus:log-debug "solver: ~a" arg-solver)
-(picus:log-debug "selector: ~a" arg-selector)
+(picus:log-debug "selector: ~a" (send arg-selector get-name))
 (picus:log-debug "precondition: ~a" arg-precondition)
 (picus:log-debug "propagation enabled: ~a" arg-prop)
 (picus:log-debug "solver enabled: ~a" arg-slv)
@@ -270,17 +285,19 @@
 (define path-sym (string-replace r1cs-path ".r1cs" ".sym"))
 (picus:log-accounting #:type "started_algorithm")
 (match-define-values ((list res res-ks res-us readable-res-info raw-res-info) cpu real gc)
-  (time-apply (λ ()
-                (dpvl:apply-algorithm
-                 nwires
-                 input-set output-set target-set
-                 varlist opts defs cnsts
-                 alt-varlist alt-defs alt-cnsts
-                 unique-set precondition ; prior knowledge row
-                 arg-selector arg-prop arg-slv arg-timeout path-sym
-                 solve interpret-r1cs
-                 optimize-r1cs-p0 expand-r1cs normalize-r1cs optimize-r1cs-p1))
-              '()))
+  (parameterize ([dpvl:current-selector arg-selector])
+    (time-apply (λ ()
+                  (dpvl:apply-algorithm
+                   nwires
+                   input-set output-set target-set
+                   varlist opts defs cnsts
+                   alt-varlist alt-defs alt-cnsts
+                   unique-set precondition ; prior knowledge row
+                   arg-prop arg-slv arg-timeout path-sym
+                   solve interpret-r1cs
+                   optimize-r1cs-p0 expand-r1cs normalize-r1cs optimize-r1cs-p1))
+                '())))
+
 (picus:log-accounting #:type "finished_algorithm")
 (picus:log-accounting #:type "algorithm_time_cpu"
                       #:value cpu

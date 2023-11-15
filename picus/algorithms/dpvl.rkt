@@ -12,14 +12,12 @@
          ; (prefix-in ln0: "./lemmas/baby-lemma.rkt")
          "../logging.rkt"
          "../exit.rkt")
-(provide apply-algorithm)
+(provide apply-algorithm
+         current-selector)
 
 ; ======== module global variables ======== ;
 
-; selector series, need arg-selector to resolve
-(define apply-selector null)
-(define selector-feedback null)
-(define selector-init null)
+(define current-selector (make-parameter selector:counter))
 
 ; problem pack, needs to be set and initialized by apply- function
 (define :nwires null)
@@ -47,7 +45,6 @@
 (define :alt-nrmcnsts null)
 (define :alt-p1cnsts null)
 
-(define :arg-selector null)
 (define :arg-prop null)
 (define :arg-slv null)
 (define :arg-timeout null)
@@ -162,7 +159,7 @@
      (values 'normal ks us null)]
     ; else, set not empty, move forward
     [else
-     (define sid (apply-selector uspool :weight-map))
+     (define sid (send (current-selector) apply-selector uspool :weight-map))
      (match-define-values
       ((list solved? info) cpu real gc)
       (time-apply (λ () (dpvl-solve ks us sid)) '()))
@@ -170,7 +167,7 @@
      (set! total-real (+ total-real real))
      (set! total-gc (+ total-gc gc))
      ; send feedback to selector
-     (selector-feedback sid solved?)
+     (send (current-selector) selector-feedback sid solved?)
      (cond
        ; solved, update ks & us, then return
        [(equal? 'verified solved?) (values 'normal (set-add ks sid) (set-remove us sid) null)]
@@ -358,7 +355,7 @@
          varlist opts defs cnsts
          alt-varlist alt-defs alt-cnsts
          unique-set precondition
-         arg-selector arg-prop arg-slv arg-timeout path-sym
+         arg-prop arg-slv arg-timeout path-sym
          solve interpret-r1cs
          optimize-r1cs-p0 expand-r1cs normalize-r1cs optimize-r1cs-p1
          ; extra constraints, usually from cex module about partial model
@@ -388,7 +385,6 @@
   (set! :alt-defs alt-defs)
   (set! :alt-cnsts alt-cnsts)
 
-  (set! :arg-selector arg-selector)
   (set! :arg-prop arg-prop)
   (set! :arg-slv arg-slv)
   (set! :arg-timeout arg-timeout)
@@ -448,12 +444,6 @@
   ; ==== then normalize the constraints ====
   (set! :nrmcnsts (:normalize-r1cs :expcnsts))
   (set! :alt-nrmcnsts (:normalize-r1cs :alt-expcnsts))
-
-  ; initialize selector
-  (set! apply-selector (selector:apply-selector arg-selector))
-  (set! selector-feedback (selector:selector-feedback arg-selector))
-  (set! selector-init (selector:selector-init arg-selector))
-  (selector-init :nwires)
 
   ; ==== then apply optimization phase 1 ====
   (set! :p1cnsts (:optimize-r1cs-p1 :nrmcnsts #t)) ; include p defs
