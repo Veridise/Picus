@@ -3,6 +3,7 @@
 (require csv-reading
          (prefix-in r1cs: "../r1cs/r1cs-grammar.rkt")
          (prefix-in selector: "./selector.rkt")
+         (prefix-in solver: "../solver.rkt")
          ; lemmas
          (prefix-in l0: "./lemmas/linear-lemma.rkt")
          (prefix-in l1: "./lemmas/binary01-lemma.rkt")
@@ -13,11 +14,13 @@
          "../logging.rkt"
          "../exit.rkt")
 (provide apply-algorithm
-         current-selector)
+         current-selector
+         current-solver)
 
 ; ======== module global variables ======== ;
 
 (define current-selector (make-parameter selector:counter))
+(define current-solver (make-parameter solver:cvc5))
 
 ; problem pack, needs to be set and initialized by apply- function
 (define :nwires null)
@@ -51,14 +54,6 @@
 
 (define :unique-set null)
 (define :precondition null)
-
-(define :solve null)
-(define :interpret-r1cs null)
-
-(define :optimize-r1cs-p0 null)
-(define :expand-r1cs null)
-(define :normalize-r1cs null)
-(define :optimize-r1cs-p1 null)
 
 ; optional arguments
 (define :extcnsts null)
@@ -111,8 +106,8 @@
                       (r1cs:rassert (r1cs:rneq (r1cs:rvar (vector-ref :varvec sid)) (r1cs:rvar (vector-ref :alt-varvec sid))))
                       (r1cs:rsolve))))))
   ; perform optimization
-  (define final-str (:interpret-r1cs (r1cs:rcmds-append :opts final-cmds)))
-  (define res (:solve final-str :arg-timeout))
+  (define final-str (send (current-solver) encode-smt (r1cs:rcmds-append (r1cs:rcmds :opts) final-cmds)))
+  (define res (send (current-solver) solve final-str :arg-timeout))
   (define solved? (cond
                     [(equal? 'unsat (car res))
                      (picus:log-progress "[solver] verified")
@@ -356,8 +351,6 @@
          alt-varlist alt-defs alt-cnsts
          unique-set precondition
          arg-prop arg-slv arg-timeout path-sym
-         solve interpret-r1cs
-         optimize-r1cs-p0 expand-r1cs normalize-r1cs optimize-r1cs-p1
          ; extra constraints, usually from cex module about partial model
          #:extcnsts [extcnsts (r1cs:rcmds (list ))]
          ; if true, then the query block will not be issued
@@ -392,14 +385,6 @@
   (set! :unique-set unique-set)
   (set! :precondition precondition)
 
-  (set! :solve solve)
-  (set! :interpret-r1cs interpret-r1cs)
-
-  (set! :optimize-r1cs-p0 optimize-r1cs-p0)
-  (set! :expand-r1cs expand-r1cs)
-  (set! :normalize-r1cs normalize-r1cs)
-  (set! :optimize-r1cs-p1 optimize-r1cs-p1)
-
   ; optional arguments
   (set! :extcnsts extcnsts)
   (set! :skip-query? skip-query?)
@@ -426,7 +411,7 @@
 
   ; ==== branch out: skip optimization phase 0 and apply expand & normalize ====
   ; computing rcdmap need no ab0 lemma from optimization phase 0
-  (set! :sdmcnsts (:normalize-r1cs (:expand-r1cs :cnsts)))
+  (set! :sdmcnsts (send (current-solver) normalize-r1cs (send (current-solver) expand-r1cs :cnsts)))
 
   ; generate linear-clauses requires no optimization to exclude ror and rand
   ; linear-clauses requires normalized constraints to get best results
@@ -434,20 +419,20 @@
   (set! :weight-map (l0:compute-weight-map :linear-clauses))
 
   ; ==== first apply optimization phase 0 ====
-  (set! :p0cnsts (:optimize-r1cs-p0 :cnsts))
-  (set! :alt-p0cnsts (:optimize-r1cs-p0 :alt-cnsts))
+  (set! :p0cnsts (send (current-solver) optimize-r1cs-p0 :cnsts))
+  (set! :alt-p0cnsts (send (current-solver) optimize-r1cs-p0 :alt-cnsts))
 
   ; ==== then expand the constraints ====
-  (set! :expcnsts (:expand-r1cs :p0cnsts))
-  (set! :alt-expcnsts (:expand-r1cs :alt-p0cnsts))
+  (set! :expcnsts (send (current-solver) expand-r1cs :p0cnsts))
+  (set! :alt-expcnsts (send (current-solver) expand-r1cs :alt-p0cnsts))
 
   ; ==== then normalize the constraints ====
-  (set! :nrmcnsts (:normalize-r1cs :expcnsts))
-  (set! :alt-nrmcnsts (:normalize-r1cs :alt-expcnsts))
+  (set! :nrmcnsts (send (current-solver) normalize-r1cs :expcnsts))
+  (set! :alt-nrmcnsts (send (current-solver) normalize-r1cs :alt-expcnsts))
 
   ; ==== then apply optimization phase 1 ====
-  (set! :p1cnsts (:optimize-r1cs-p1 :nrmcnsts #t)) ; include p defs
-  (set! :alt-p1cnsts (:optimize-r1cs-p1 :alt-nrmcnsts #f)) ; no p defs since this is alt-
+  (set! :p1cnsts (send (current-solver) optimize-r1cs-p1 :nrmcnsts #t)) ; include p defs
+  (set! :alt-p1cnsts (send (current-solver) optimize-r1cs-p1 :alt-nrmcnsts #f)) ; no p defs since this is alt-
 
   ; prepare partial cmds for better reuse through out the algorithm
   (set! :partial-cmds

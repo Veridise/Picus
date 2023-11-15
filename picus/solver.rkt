@@ -1,98 +1,120 @@
 #lang racket
-; switcher for solver related components
-(require json racket/engine
-    (prefix-in tokamak: "./tokamak.rkt")
-)
-; z3 require
-(require
-    (prefix-in z3-solver: "./solvers/z3-solver.rkt")
-    (prefix-in z3-rint: "./r1cs/r1cs-z3-interpreter.rkt")
-    (prefix-in z3-parser: "./r1cs/r1cs-z3-parser.rkt")
-    ; optimizers
-    (prefix-in z3-simple: "./optimizers/r1cs-z3-simple-optimizer.rkt")
-    (prefix-in z3-subp: "./optimizers/r1cs-z3-subp-optimizer.rkt")
-    (prefix-in z3-ab0: "./optimizers/r1cs-z3-ab0-optimizer.rkt")
-)
-; cvc4 require (partly shared with z3)
-(require
-    (prefix-in cvc4-solver: "./solvers/cvc4-solver.rkt")
-    (prefix-in cvc4-rint: "./r1cs/r1cs-cvc4-interpreter.rkt")
-)
-; cvc5 require
-(require
-    (prefix-in cvc5-solver: "./solvers/cvc5-solver.rkt")
-    (prefix-in cvc5-rint: "./r1cs/r1cs-cvc5-interpreter.rkt")
-    (prefix-in cvc5-parser: "./r1cs/r1cs-cvc5-parser.rkt")
-    ; optimizers
-    (prefix-in cvc5-simple: "./optimizers/r1cs-cvc5-simple-optimizer.rkt")
-    (prefix-in cvc5-subp: "./optimizers/r1cs-cvc5-subp-optimizer.rkt")
-    (prefix-in cvc5-ab0: "./optimizers/r1cs-cvc5-ab0-optimizer.rkt")
-)
-(provide (rename-out
-    [solve solve]
-    [parse-r1cs parse-r1cs]
-    [expand-r1cs expand-r1cs]
-    [normalize-r1cs normalize-r1cs]
-    [optimize-r1cs-p0 optimize-r1cs-p0]
-    [optimize-r1cs-p1 optimize-r1cs-p1]
-    [interpret-r1cs interpret-r1cs]
-))
 
-(define (solve arg-solver)
-    (cond
-        [(equal? "z3" arg-solver) z3-solver:solve]
-        [(equal? "cvc4" arg-solver) cvc4-solver:solve]
-        [(equal? "cvc5" arg-solver) cvc5-solver:solve]
-        [else (tokamak:exit "you can't reach here")]
-    )
-)
-(define (parse-r1cs arg-solver)
-    (cond
-        [(equal? "z3" arg-solver) z3-parser:parse-r1cs]
-        [(equal? "cvc4" arg-solver) z3-parser:parse-r1cs] ; share with z3
-        [(equal? "cvc5" arg-solver) cvc5-parser:parse-r1cs]
-        [else (tokamak:exit "you can't reach here")]
-    )
-)
-(define (expand-r1cs arg-solver)
-    (cond
-        [(equal? "z3" arg-solver) z3-parser:expand-r1cs]
-        [(equal? "cvc4" arg-solver) z3-parser:expand-r1cs] ; shared with z3
-        [(equal? "cvc5" arg-solver) cvc5-parser:expand-r1cs]
-    )
-)
-(define (normalize-r1cs arg-solver)
-    (cond
-        [(equal? "z3" arg-solver) (lambda (x) (z3-simple:optimize-r1cs x))]
-        [(equal? "cvc4" arg-solver) (lambda (x) (z3-simple:optimize-r1cs x))] ; shared with z3
-        [(equal? "cvc5" arg-solver) (lambda (x) (cvc5-simple:optimize-r1cs x))]
-        [else (tokamak:exit "you can't reach here")]
-    )
-)
-; phase 0 optimization, applies to standard form
-(define (optimize-r1cs-p0 arg-solver)
-    (cond
-        [(equal? "z3" arg-solver) (lambda (x) (z3-ab0:optimize-r1cs x))]
-        [(equal? "cvc4" arg-solver) (lambda (x) (z3-ab0:optimize-r1cs x))] ; shared with z3
-        [(equal? "cvc5" arg-solver) (lambda (x) (cvc5-ab0:optimize-r1cs x))]
-        [else (tokamak:exit "you can't reach here")]
-    )
-)
-; phase 1 optimization, applies to normalized form
-;   - pdecl?: whether or not to inlude declaration of p, usually alt- series should not include
-(define (optimize-r1cs-p1 arg-solver)
-    (cond
-        [(equal? "z3" arg-solver) (lambda (x pdef?) (z3-subp:optimize-r1cs x pdef?))]
-        [(equal? "cvc4" arg-solver) (lambda (x pdef?) (z3-subp:optimize-r1cs x pdef?))] ; shared with z3
-        [(equal? "cvc5" arg-solver) (lambda (x pdef?) (cvc5-subp:optimize-r1cs x pdef?))]
-        [else (tokamak:exit "you can't reach here")]
-    )
-)
-(define (interpret-r1cs arg-solver)
-    (cond
-        [(equal? "z3" arg-solver) z3-rint:interpret-r1cs]
-        [(equal? "cvc4" arg-solver) cvc4-rint:interpret-r1cs]
-        [(equal? "cvc5" arg-solver) cvc5-rint:interpret-r1cs]
-        [else (tokamak:exit "you can't reach here")]
-    )
-)
+(provide z3
+         cvc4
+         cvc5)
+
+(require "solver-helper.rkt"
+
+         (prefix-in config: "config.rkt")
+         (prefix-in r1cs: "r1cs/r1cs-grammar.rkt")
+
+         (prefix-in z3-rint: "./r1cs/r1cs-z3-interpreter.rkt")
+         (prefix-in z3-parser: "./r1cs/r1cs-z3-parser.rkt")
+         ; optimizers
+         (prefix-in z3-simple: "./optimizers/r1cs-z3-simple-optimizer.rkt")
+         (prefix-in z3-subp: "./optimizers/r1cs-z3-subp-optimizer.rkt")
+         (prefix-in z3-ab0: "./optimizers/r1cs-z3-ab0-optimizer.rkt")
+
+         (prefix-in cvc4-rint: "./r1cs/r1cs-cvc4-interpreter.rkt")
+
+         (prefix-in cvc5-rint: "./r1cs/r1cs-cvc5-interpreter.rkt")
+         (prefix-in cvc5-parser: "./r1cs/r1cs-cvc5-parser.rkt")
+         ; optimizers
+         (prefix-in cvc5-simple: "./optimizers/r1cs-cvc5-simple-optimizer.rkt")
+         (prefix-in cvc5-subp: "./optimizers/r1cs-cvc5-subp-optimizer.rkt")
+         (prefix-in cvc5-ab0: "./optimizers/r1cs-cvc5-ab0-optimizer.rkt"))
+
+(define solver-interface<%>
+  (interface ()
+    solve
+    get-options
+    parse-r1cs
+    expand-r1cs
+    normalize-r1cs
+    ; phase 0 optimization, applies to standard form
+    optimize-r1cs-p0
+    ; phase 1 optimization, applies to normalized form
+    ;   - pdecl?: whether or not to inlude declaration of p, usually alt- series should not include
+    optimize-r1cs-p1
+    encode-smt
+    get-name))
+
+(define z3%
+  (class* object% (solver-interface<%>)
+    (super-new)
+    (define/public (solve smt-str timeout #:verbose? [verbose? #f])
+      ((make-solve #:executable "z3") smt-str timeout #:verbose? verbose?))
+
+    (define/public (get-options)
+      (list (r1cs:rlogic "QF_NIA")))
+
+    (define/public (parse-r1cs arg-r1cs prefix)
+      (z3-parser:parse-r1cs arg-r1cs prefix))
+
+    (define/public (expand-r1cs arg-r1cs)
+      (z3-parser:expand-r1cs arg-r1cs))
+
+    (define/public (normalize-r1cs arg-r1cs)
+      (z3-simple:optimize-r1cs arg-r1cs))
+
+    (define/public (optimize-r1cs-p0 arg-r1cs)
+      (z3-ab0:optimize-r1cs arg-r1cs))
+
+    (define/public (optimize-r1cs-p1 arg-r1cs pdef?)
+      (z3-subp:optimize-r1cs arg-r1cs pdef?))
+
+    (define/public (encode-smt arg-r1cs)
+      (z3-rint:interpret-r1cs arg-r1cs))
+
+    (define/public (get-name) "z3")))
+
+;; Most methods in cvc4 is shared with z3 (and not cvc5, since cvc4
+;; doesn't support the finite field theory in cvc5). So we inherit cvc4 from z3.
+(define cvc4%
+  (class* z3% (solver-interface<%>)
+    (super-new)
+    (define/override (solve smt-str timeout #:verbose? [verbose? #f])
+      ((make-solve #:executable "cvc4" #:options '("--produce-models")) smt-str timeout #:verbose? verbose?))
+
+    (define/override (encode-smt arg-r1cs)
+      (cvc4-rint:interpret-r1cs arg-r1cs))
+
+    (define/override (get-name) "cvc4")))
+
+(define cvc5%
+  (class* object% (solver-interface<%>)
+    (super-new)
+    (define/public (solve smt-str timeout #:verbose? [verbose? #f])
+      ((make-solve #:executable "cvc5" #:options '("--produce-models")) smt-str timeout #:verbose? verbose?))
+
+    (define/public (get-options)
+      (list
+       (r1cs:rlogic "QF_FF")
+       (r1cs:rraw "(set-info :smt-lib-version 2.6)")
+       (r1cs:rraw "(set-info :category \"crafted\")")
+       (r1cs:rraw (format "(define-sort F () (_ FiniteField ~a))" config:p))))
+
+    (define/public (parse-r1cs arg-r1cs prefix)
+      (cvc5-parser:parse-r1cs arg-r1cs prefix))
+
+    (define/public (expand-r1cs arg-r1cs)
+      (cvc5-parser:expand-r1cs arg-r1cs))
+
+    (define/public (normalize-r1cs arg-r1cs)
+      (cvc5-simple:optimize-r1cs arg-r1cs))
+
+    (define/public (optimize-r1cs-p0 arg-r1cs)
+      (cvc5-ab0:optimize-r1cs arg-r1cs))
+
+    (define/public (optimize-r1cs-p1 arg-r1cs pdef?)
+      (cvc5-subp:optimize-r1cs arg-r1cs pdef?))
+
+    (define/public (encode-smt arg-r1cs)
+      (cvc5-rint:interpret-r1cs arg-r1cs))
+
+    (define/public (get-name) "cvc5")))
+
+(define z3 (new z3%))
+(define cvc4 (new cvc4%))
+(define cvc5 (new cvc5%))
