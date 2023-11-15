@@ -1,0 +1,2 @@
+changed:
+  - Refactored solver interfaces to use the Racket class/object system
