@@ -6,10 +6,10 @@
          racket/match
          racket/engine
          racket/file
-         (prefix-in config: "../config.rkt")
-         "../logging.rkt"
-         "../exit.rkt"
-         "../tmpdir.rkt")
+         (prefix-in config: "config.rkt")
+         "logging.rkt"
+         "exit.rkt"
+         "tmpdir.rkt")
 
 (define ((make-solve #:executable executable
                      #:options [options '()])

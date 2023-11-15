@@ -15,6 +15,7 @@
          "picus/gen-witness.rkt")
 
 (define-runtime-path selector-path "picus/algorithms/selector.rkt")
+(define-runtime-path solver-path "picus/solver.rkt")
 
 ; =====================================
 ; ======== commandline parsing ========
@@ -26,7 +27,7 @@
 (define arg-opt-level #f)
 (define arg-clean? #t)
 (define arg-timeout 5000)
-(define arg-solver "cvc5")
+(define arg-solver (dpvl:current-solver))
 (define arg-selector (dpvl:current-selector))
 (define arg-precondition null)
 (define arg-prop #t)
@@ -70,10 +71,11 @@
                           [_ (picus:user-error "unrecognized optimization level: ~a" p-opt-level)]))]
  [("--timeout") p-timeout "timeout for every small query (default: 5000ms)"
                 (set! arg-timeout (string->number p-timeout))]
- [("--solver") p-solver "solver to use: z3 | cvc4 | cvc5 (default: cvc5)"
-               (cond
-                 [(set-member? (set "z3" "cvc5" "cvc4") p-solver) (set! arg-solver p-solver)]
-                 [else (picus:user-error "solver needs to be either z3 or cvc5")])]
+ [("--solver") p-solver
+               [(gen-help-from-module solver-path
+                                      "solver to use: ~a (default: ~a)"
+                                      (send arg-solver get-name))]
+               (set! arg-solver (load-from-module solver-path p-solver "valid selector: ~a"))]
  [("--selector") p-selector
                  [(gen-help-from-module selector-path
                                         "selector to use: ~a (default: ~a)"
@@ -211,17 +213,6 @@
 (picus:log-debug "solver enabled: ~a" arg-slv)
 (picus:log-debug "safety mode: ~a" (if arg-strong "strong" "weak"))
 
-; =================================================
-; ======== resolve solver specific methods ========
-; =================================================
-(define solve (solver:solve arg-solver))
-(define parse-r1cs (solver:parse-r1cs arg-solver))
-(define expand-r1cs (solver:expand-r1cs arg-solver))
-(define normalize-r1cs (solver:normalize-r1cs arg-solver))
-(define optimize-r1cs-p0 (solver:optimize-r1cs-p0 arg-solver))
-(define optimize-r1cs-p1 (solver:optimize-r1cs-p1 arg-solver))
-(define interpret-r1cs (solver:interpret-r1cs arg-solver))
-
 ; ==================================
 ; ======== main preparation ========
 ; ==================================
@@ -246,11 +237,11 @@
 ; parse original r1cs
 (picus:log-progress "parsing original r1cs...")
 ;; invariant: (length varlist) = nwires
-(define-values (varlist opts defs cnsts) (parse-r1cs r0 "x")) ; interpret the constraint system
+(define-values (varlist defs cnsts) (send arg-solver parse-r1cs r0 "x")) ; interpret the constraint system
 (picus:log-debug "varlist: ~e" varlist)
 ; parse alternative r1cs
 (picus:log-progress "parsing alternative r1cs...")
-(define-values (alt-varlist __ alt-defs alt-cnsts) (parse-r1cs r0 "y"))
+(define-values (alt-varlist alt-defs alt-cnsts) (send arg-solver parse-r1cs r0 "y"))
 (picus:log-debug "alt-varlist ~e" alt-varlist)
 
 (picus:log-progress "configuring precondition...")
@@ -285,17 +276,16 @@
 (define path-sym (string-replace r1cs-path ".r1cs" ".sym"))
 (picus:log-accounting #:type "started_algorithm")
 (match-define-values ((list res res-ks res-us readable-res-info raw-res-info) cpu real gc)
-  (parameterize ([dpvl:current-selector arg-selector])
+  (parameterize ([dpvl:current-selector arg-selector]
+                 [dpvl:current-solver arg-solver])
     (time-apply (λ ()
                   (dpvl:apply-algorithm
                    nwires
                    input-set output-set target-set
-                   varlist opts defs cnsts
+                   varlist (send arg-solver get-options) defs cnsts
                    alt-varlist alt-defs alt-cnsts
                    unique-set precondition ; prior knowledge row
-                   arg-prop arg-slv arg-timeout path-sym
-                   solve interpret-r1cs
-                   optimize-r1cs-p0 expand-r1cs normalize-r1cs optimize-r1cs-p1))
+                   arg-prop arg-slv arg-timeout path-sym))
                 '())))
 
 (picus:log-accounting #:type "finished_algorithm")

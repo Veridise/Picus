@@ -10,12 +10,8 @@
 ;   - arg-r1cs: r1cs binary form instance using the struct r1cs grammar
 ;   - prefix :: (or/c "x" "y")
 ; returns:
-;   - (values varlist options declarations constraints)
+;   - (values varlist declarations constraints)
 (define (parse-r1cs arg-r1cs prefix)
-
-  ; a list of options
-  (define raw-opts (list (r1cs:rlogic "QF_NIA")))
-
   ; first create a list of all symbolic variables according to nwires
   (define nwires (r1cs:get-nwires arg-r1cs))
   ; strictly align with wid
@@ -80,19 +76,14 @@
       (define sum-b (r1cs:radd terms-b))
       (define sum-c (r1cs:radd terms-c))
       ; original form: A*B = C
-      (define ret-cnst
-        (r1cs:rassert
-         (r1cs:req
-          (r1cs:rmod (r1cs:rmul (list sum-a sum-b)) (r1cs:rint config:p))
-          (r1cs:rmod sum-c (r1cs:rint config:p)))))
+      (r1cs:rassert
+       (r1cs:req
+        (r1cs:rmod (r1cs:rmul (list sum-a sum-b)) (r1cs:rint config:p))
+        (r1cs:rmod sum-c (r1cs:rint config:p))))))
 
-      ret-cnst))
-
-  (values
-   (vector->list varvec)
-   (r1cs:rcmds raw-opts)
-   (r1cs:rcmds raw-decls)
-   (r1cs:rcmds sconstraints)))
+  (values (vector->list varvec)
+          (r1cs:rcmds raw-decls)
+          (r1cs:rcmds sconstraints)))
 
 
 ; expands standard r1cs into terms++ form (sum of terms)
