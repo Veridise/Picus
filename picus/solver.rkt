@@ -34,8 +34,8 @@
     normalize-r1cs
     ; phase 0 optimization, applies to standard form
     optimize-r1cs-p0
+    get-pdefs
     ; phase 1 optimization, applies to normalized form
-    ;   - pdecl?: whether or not to inlude declaration of p, usually alt- series should not include
     optimize-r1cs-p1
     encode-smt
     get-name))
@@ -61,8 +61,31 @@
     (define/public (optimize-r1cs-p0 arg-r1cs)
       (z3-ab0:optimize-r1cs arg-r1cs))
 
-    (define/public (optimize-r1cs-p1 arg-r1cs pdef?)
-      (z3-subp:optimize-r1cs arg-r1cs pdef?))
+    (define/public (get-pdefs)
+      (r1cs:rcmds
+       (list
+        (r1cs:rcmt "======== p definitions ========")
+        (r1cs:rdef (r1cs:rvar "p") (r1cs:rtype "Int"))
+        (r1cs:rassert (r1cs:req (r1cs:rvar "p") (r1cs:rint config:p)))
+        (r1cs:rdef (r1cs:rvar "ps1") (r1cs:rtype "Int"))
+        (r1cs:rassert (r1cs:req (r1cs:rvar "ps1") (r1cs:rint (- config:p 1))))
+        (r1cs:rdef (r1cs:rvar "ps2") (r1cs:rtype "Int"))
+        (r1cs:rassert (r1cs:req (r1cs:rvar "ps2") (r1cs:rint (- config:p 2))))
+        (r1cs:rdef (r1cs:rvar "ps3") (r1cs:rtype "Int"))
+        (r1cs:rassert (r1cs:req (r1cs:rvar "ps3") (r1cs:rint (- config:p 3))))
+        (r1cs:rdef (r1cs:rvar "ps4") (r1cs:rtype "Int"))
+        (r1cs:rassert (r1cs:req (r1cs:rvar "ps4") (r1cs:rint (- config:p 4))))
+        (r1cs:rdef (r1cs:rvar "ps5") (r1cs:rtype "Int"))
+        (r1cs:rassert (r1cs:req (r1cs:rvar "ps5") (r1cs:rint (- config:p 5))))
+        ; add 0 definition
+        (r1cs:rdef (r1cs:rvar "zero") (r1cs:rtype "Int"))
+        (r1cs:rassert (r1cs:req (r1cs:rvar "zero") (r1cs:rint 0)))
+        ; add 1 definition
+        (r1cs:rdef (r1cs:rvar "one") (r1cs:rtype "Int"))
+        (r1cs:rassert (r1cs:req (r1cs:rvar "one") (r1cs:rint 1))))))
+
+    (define/public (optimize-r1cs-p1 arg-r1cs)
+      (z3-subp:optimize-r1cs arg-r1cs))
 
     (define/public (encode-smt arg-r1cs)
       (z3-rint:interpret-r1cs arg-r1cs))
@@ -107,8 +130,32 @@
     (define/public (optimize-r1cs-p0 arg-r1cs)
       (cvc5-ab0:optimize-r1cs arg-r1cs))
 
-    (define/public (optimize-r1cs-p1 arg-r1cs pdef?)
-      (cvc5-subp:optimize-r1cs arg-r1cs pdef?))
+    (define/public (get-pdefs)
+      (r1cs:rcmds
+       (list
+        ; add p definition
+        (r1cs:rcmt "======== p definitions ========")
+        (r1cs:rdef (r1cs:rvar "p") (r1cs:rtype "F"))
+        (r1cs:rassert (r1cs:req (r1cs:rvar "p") (r1cs:rint config:p)))
+        (r1cs:rdef (r1cs:rvar "ps1") (r1cs:rtype "F"))
+        (r1cs:rassert (r1cs:req (r1cs:rvar "ps1") (r1cs:rint (- config:p 1))))
+        (r1cs:rdef (r1cs:rvar "ps2") (r1cs:rtype "F"))
+        (r1cs:rassert (r1cs:req (r1cs:rvar "ps2") (r1cs:rint (- config:p 2))))
+        (r1cs:rdef (r1cs:rvar "ps3") (r1cs:rtype "F"))
+        (r1cs:rassert (r1cs:req (r1cs:rvar "ps3") (r1cs:rint (- config:p 3))))
+        (r1cs:rdef (r1cs:rvar "ps4") (r1cs:rtype "F"))
+        (r1cs:rassert (r1cs:req (r1cs:rvar "ps4") (r1cs:rint (- config:p 4))))
+        (r1cs:rdef (r1cs:rvar "ps5") (r1cs:rtype "F"))
+        (r1cs:rassert (r1cs:req (r1cs:rvar "ps5") (r1cs:rint (- config:p 5))))
+        ; add 0 definition
+        (r1cs:rdef (r1cs:rvar "zero") (r1cs:rtype "F"))
+        (r1cs:rassert (r1cs:req (r1cs:rvar "zero") (r1cs:rint 0)))
+        ; add 1 definition
+        (r1cs:rdef (r1cs:rvar "one") (r1cs:rtype "F"))
+        (r1cs:rassert (r1cs:req (r1cs:rvar "one") (r1cs:rint 1))))))
+
+    (define/public (optimize-r1cs-p1 arg-r1cs)
+      (cvc5-subp:optimize-r1cs arg-r1cs))
 
     (define/public (encode-smt arg-r1cs)
       (cvc5-rint:interpret-r1cs arg-r1cs))
