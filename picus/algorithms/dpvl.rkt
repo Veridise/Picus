@@ -33,19 +33,12 @@
 (define :opts null)
 (define :defs null)
 (define :cnsts null) ; standard form
-(define :sdmcnsts null) ; normalized standard form (specifically for rcdmap, original only)
-(define :p0cnsts null) ; standard form optimized by phase 0 optimization
-(define :expcnsts null) ; expanded form
-(define :nrmcnsts null) ; normalized form
 (define :p1cnsts null) ; normalized form optimized by phase 1 optimization
 
 (define :alt-varlist null)
 (define :alt-varvec null)
 (define :alt-defs null)
 (define :alt-cnsts null)
-(define :alt-p0cnsts null)
-(define :alt-expcnsts null)
-(define :alt-nrmcnsts null)
 (define :alt-p1cnsts null)
 
 (define :arg-prop null)
@@ -411,7 +404,9 @@
 
   ; ==== branch out: skip optimization phase 0 and apply expand & normalize ====
   ; computing rcdmap need no ab0 lemma from optimization phase 0
-  (set! :sdmcnsts (send (current-solver) normalize-r1cs (send (current-solver) expand-r1cs :cnsts)))
+  (define :sdmcnsts
+    (send (current-solver) normalize-r1cs
+          (send (current-solver) expand-r1cs :cnsts)))
 
   ; generate linear-clauses requires no optimization to exclude ror and rand
   ; linear-clauses requires normalized constraints to get best results
@@ -419,20 +414,20 @@
   (set! :weight-map (l0:compute-weight-map :linear-clauses))
 
   ; ==== first apply optimization phase 0 ====
-  (set! :p0cnsts (send (current-solver) optimize-r1cs-p0 :cnsts))
-  (set! :alt-p0cnsts (send (current-solver) optimize-r1cs-p0 :alt-cnsts))
+  (define :p0cnsts (send (current-solver) optimize-r1cs-p0 :cnsts))
+  (define :alt-p0cnsts (send (current-solver) optimize-r1cs-p0 :alt-cnsts))
 
   ; ==== then expand the constraints ====
-  (set! :expcnsts (send (current-solver) expand-r1cs :p0cnsts))
-  (set! :alt-expcnsts (send (current-solver) expand-r1cs :alt-p0cnsts))
+  (define :expcnsts (send (current-solver) expand-r1cs :p0cnsts))
+  (define :alt-expcnsts (send (current-solver) expand-r1cs :alt-p0cnsts))
 
   ; ==== then normalize the constraints ====
-  (set! :nrmcnsts (send (current-solver) normalize-r1cs :expcnsts))
-  (set! :alt-nrmcnsts (send (current-solver) normalize-r1cs :alt-expcnsts))
+  (define :nrmcnsts (send (current-solver) normalize-r1cs :expcnsts))
+  (define :alt-nrmcnsts (send (current-solver) normalize-r1cs :alt-expcnsts))
 
   ; ==== then apply optimization phase 1 ====
-  (set! :p1cnsts (send (current-solver) optimize-r1cs-p1 :nrmcnsts #t)) ; include p defs
-  (set! :alt-p1cnsts (send (current-solver) optimize-r1cs-p1 :alt-nrmcnsts #f)) ; no p defs since this is alt-
+  (set! :p1cnsts (send (current-solver) optimize-r1cs-p1 :nrmcnsts))
+  (set! :alt-p1cnsts (send (current-solver) optimize-r1cs-p1 :alt-nrmcnsts))
 
   ; prepare partial cmds for better reuse through out the algorithm
   (set! :partial-cmds
@@ -442,6 +437,7 @@
                       (r1cs:rcmt "======== original block ========")
                       (r1cs:rcmt "================================")))
          :defs
+         (send (current-solver) get-pdefs)
          (r1cs:rcmds (list (r1cs:rcmt "======== main constraints ========")))
          :p1cnsts
          (r1cs:rcmds (list (r1cs:rassert (r1cs:req (r1cs:rint 1) (r1cs:rvar (format "x0"))))))
