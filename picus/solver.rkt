@@ -5,21 +5,18 @@
          cvc5)
 
 (require "solver-helper.rkt"
+         "encoder.rkt"
          "exit.rkt"
          "optimizers/subp-optimizer.rkt"
 
          (prefix-in config: "config.rkt")
          (prefix-in r1cs: "r1cs/r1cs-grammar.rkt")
 
-         (prefix-in z3-rint: "./r1cs/r1cs-z3-interpreter.rkt")
          (prefix-in z3-parser: "./r1cs/r1cs-z3-parser.rkt")
          ; optimizers
          (prefix-in z3-simple: "./optimizers/r1cs-z3-simple-optimizer.rkt")
          (prefix-in z3-ab0: "./optimizers/r1cs-z3-ab0-optimizer.rkt")
 
-         (prefix-in cvc4-rint: "./r1cs/r1cs-cvc4-interpreter.rkt")
-
-         (prefix-in cvc5-rint: "./r1cs/r1cs-cvc5-interpreter.rkt")
          (prefix-in cvc5-parser: "./r1cs/r1cs-cvc5-parser.rkt")
          ; optimizers
          (prefix-in cvc5-simple: "./optimizers/r1cs-cvc5-simple-optimizer.rkt")
@@ -92,8 +89,14 @@
            [(r1cs:rint (== config:p)) (r1cs:rvar "p")]
            [_ (fallback e)]))))
 
-    (define/public (encode-smt arg-r1cs)
-      (z3-rint:interpret-r1cs arg-r1cs))
+    (define/public (encode-smt e)
+      (encode
+       e
+       (λ (e fallback)
+         (let loop ([e e])
+           (match e
+             [(r1cs:rmod v mod) (emit "(rem " (loop v) " " (loop mod) ")")]
+             [_ (fallback e)])))))
 
     (define/public (get-name) "z3")))
 
@@ -105,8 +108,15 @@
     (define/override (solve smt-str timeout #:verbose? [verbose? #f])
       ((make-solve #:executable "cvc4" #:options '("--produce-models")) smt-str timeout #:verbose? verbose?))
 
-    (define/override (encode-smt arg-r1cs)
-      (cvc4-rint:interpret-r1cs arg-r1cs))
+    (define/override (encode-smt e)
+      (encode
+       e
+       (λ (e fallback)
+         (let loop ([e e])
+           (match e
+             ; use mod for cvc4 since there's no rem
+             [(r1cs:rmod v mod) (emit "(mod " (loop v) " " (loop mod) ")")]
+             [_ (fallback e)])))))
 
     (define/override (get-name) "cvc4")))
 
@@ -170,8 +180,19 @@
             (picus:tool-error "not supported: ~a" e)]
            [_ (fallback e)]))))
 
-    (define/public (encode-smt arg-r1cs)
-      (cvc5-rint:interpret-r1cs arg-r1cs))
+    (define/public (encode-smt e)
+      (encode
+       e
+       (λ (e fallback)
+         (let loop ([e e])
+           (match e
+             [(r1cs:rint v) (printf "#f~am~a" v config:p)]
+             [(r1cs:radd vs) (format-op "ff.add" loop vs)]
+             [(r1cs:rmul vs) (format-op "ff.mul" loop vs)]
+             [(or (r1cs:rleq _ _) (r1cs:rlt _ _) (r1cs:rgeq _ _) (r1cs:rgt _ _)
+                  (r1cs:rmod _ _))
+              (picus:tool-error "not supported: ~a" e)]
+             [_ (fallback e)])))))
 
     (define/public (get-name) "cvc5")))
 

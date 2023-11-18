@@ -41,9 +41,7 @@
 ; no rnot here out of simplicity, use neq, or other unequalty instead
 ; sub-command level
 (struct radd (vs) #:mutable #:transparent #:reflection-name 'r1cs:radd) ; vs: list
-(struct rsub (vs) #:mutable #:transparent #:reflection-name 'r1cs:rsub) ; vs: list
 (struct rmul (vs) #:mutable #:transparent #:reflection-name 'r1cs:rmul) ; vs: list
-(struct rneg (v) #:mutable #:transparent #:reflection-name 'r1cs:rneg) ; v: int
 (struct rmod (v mod) #:mutable #:transparent #:reflection-name 'r1cs:rmod) ; v: int, mod: int
 
 (define (rcmds-ref obj ind) (list-ref (rcmds-vs obj) ind))
@@ -94,11 +92,6 @@
             [(radd vs)
                 (string-join (for/list ([v vs]) (format "~a" (do v)))
                     " + "
-                )
-            ]
-            [(rsub vs)
-                (string-join (for/list ([v vs]) (format "~a" (do v)))
-                    " - "
                 )
             ]
             [(rmul vs)
@@ -157,7 +150,6 @@
             ]
             [(rtype v) (list )]
             [(radd vs) (append* (for/list ([v vs]) (do v)))]
-            [(rsub vs) (append* (for/list ([v vs]) (do v)))]
             [(rmul vs) (append* (for/list ([v vs]) (do v)))]
             [(rmod v mod) (append (do v) (do mod))]
             [_ (picus:tool-error "not supported: ~a" obj0)]
@@ -210,7 +202,6 @@
             ]
             [(rtype v) (list )]
             [(radd vs) (append* (for/list ([v vs]) (do v)))]
-            [(rsub vs) (append* (for/list ([v vs]) (do v)))]
             ; (assumed optimized version)
             ; - 1*x will be x, which will not be captured by rmul
             ; - (fixme) this could be wrong, a*x is treated as linear,
@@ -272,7 +263,6 @@
             [(rtype v) (list )]
             [(radd vs)
              (append* (for/list ([v vs]) (do v include?)))]
-            [(rsub vs) (append* (for/list ([v vs]) (do v include?)))]
             [(rmul vs)
              (define vv (filter (lambda (x) (rvar? x)) vs))
              (if (<= (length vv) 1)
