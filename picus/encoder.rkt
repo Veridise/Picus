@@ -1,14 +1,13 @@
 #lang racket/base
 
-(provide interp
+(provide encode
          format-op
          emit)
 
 (require racket/match
          syntax/parse/define
-         racket/string
-         "../exit.rkt"
-         (prefix-in r1cs: "./r1cs-grammar.rkt")
+         "exit.rkt"
+         (prefix-in r1cs: "r1cs/r1cs-grammar.rkt")
          (for-syntax racket/base))
 
 (define (format-op op proc args)
@@ -34,14 +33,14 @@
 (define-syntax-parse-rule (emit xs:item ...)
   (begin xs.gen ...))
 
-(define (interp arg-r1cs prnt)
+(define (encode e proc)
   (define p (open-output-string))
   (parameterize ([current-output-port p])
-    (let loop ([arg-r1cs arg-r1cs])
-      (prnt
-       arg-r1cs
-       (λ (arg-r1cs)
-         (match arg-r1cs
+    (let loop ([e e])
+      (proc
+       e
+       (λ (e)
+         (match e
 
            ; command level
            [(r1cs:rcmds vs)
@@ -54,11 +53,20 @@
            [(r1cs:rdef v t) (emit "(declare-const " (loop v) " " (loop t) ")")]
            [(r1cs:rassert v) (emit "(assert " (loop v) ")")]
            [(r1cs:rcmt v) (printf "; ~a" v)]
-           [(r1cs:rsolve ) (display "(check-sat)\n(get-model)")]
+           [(r1cs:rsolve) (display "(check-sat)\n(get-model)")]
+
+           [(r1cs:rint v) (display v)]
+           [(r1cs:radd vs) (format-op "+" loop vs)]
+           [(r1cs:rmul vs) (format-op "*" loop vs)]
 
            ; sub-command level
            [(r1cs:req lhs rhs) (emit "(= " (loop lhs) " " (loop rhs) ")")]
            [(r1cs:rneq lhs rhs) (emit "(not (= " (loop lhs) " " (loop rhs) "))")]
+
+           [(r1cs:rleq lhs rhs) (emit "(<= " (loop lhs) " " (loop rhs) ")")]
+           [(r1cs:rlt lhs rhs) (emit "(< " (loop lhs) " " (loop rhs) ")")]
+           [(r1cs:rgeq lhs rhs) (emit "(>= " (loop lhs) " " (loop rhs) ")")]
+           [(r1cs:rgt lhs rhs) (emit "(> " (loop lhs) " " (loop rhs) ")")]
 
            [(r1cs:rand vs) (format-op "and" loop vs)]
            [(r1cs:ror vs) (format-op "or" loop vs)]
@@ -66,5 +74,5 @@
 
            [(r1cs:rvar v) (display v)]
            [(r1cs:rtype v) (display v)]
-           [_ (picus:tool-error "not supported: ~a" arg-r1cs)])))))
+           [_ (picus:tool-error "not supported: ~a" e)])))))
   (get-output-string p))
