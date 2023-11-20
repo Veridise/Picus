@@ -5,6 +5,8 @@
          cvc5)
 
 (require "solver-helper.rkt"
+         "exit.rkt"
+         "optimizers/subp-optimizer.rkt"
 
          (prefix-in config: "config.rkt")
          (prefix-in r1cs: "r1cs/r1cs-grammar.rkt")
@@ -13,7 +15,6 @@
          (prefix-in z3-parser: "./r1cs/r1cs-z3-parser.rkt")
          ; optimizers
          (prefix-in z3-simple: "./optimizers/r1cs-z3-simple-optimizer.rkt")
-         (prefix-in z3-subp: "./optimizers/r1cs-z3-subp-optimizer.rkt")
          (prefix-in z3-ab0: "./optimizers/r1cs-z3-ab0-optimizer.rkt")
 
          (prefix-in cvc4-rint: "./r1cs/r1cs-cvc4-interpreter.rkt")
@@ -22,7 +23,6 @@
          (prefix-in cvc5-parser: "./r1cs/r1cs-cvc5-parser.rkt")
          ; optimizers
          (prefix-in cvc5-simple: "./optimizers/r1cs-cvc5-simple-optimizer.rkt")
-         (prefix-in cvc5-subp: "./optimizers/r1cs-cvc5-subp-optimizer.rkt")
          (prefix-in cvc5-ab0: "./optimizers/r1cs-cvc5-ab0-optimizer.rkt"))
 
 (define solver-interface<%>
@@ -84,8 +84,13 @@
         (r1cs:rdef (r1cs:rvar "one") (r1cs:rtype "Int"))
         (r1cs:rassert (r1cs:req (r1cs:rvar "one") (r1cs:rint 1))))))
 
-    (define/public (optimize-r1cs-p1 arg-r1cs)
-      (z3-subp:optimize-r1cs arg-r1cs))
+    (define/public (optimize-r1cs-p1 e)
+      (optimize-subp
+       e
+       (λ (e fallback)
+         (match e
+           [(r1cs:rint (== config:p)) (r1cs:rvar "p")]
+           [_ (fallback e)]))))
 
     (define/public (encode-smt arg-r1cs)
       (z3-rint:interpret-r1cs arg-r1cs))
@@ -154,8 +159,16 @@
         (r1cs:rdef (r1cs:rvar "one") (r1cs:rtype "F"))
         (r1cs:rassert (r1cs:req (r1cs:rvar "one") (r1cs:rint 1))))))
 
-    (define/public (optimize-r1cs-p1 arg-r1cs)
-      (cvc5-subp:optimize-r1cs arg-r1cs))
+    (define/public (optimize-r1cs-p1 e)
+      (optimize-subp
+       e
+       (λ (e fallback)
+         (match e
+           [(r1cs:rint (== config:p)) (r1cs:rint 0)]
+           [(or (r1cs:rleq _ _) (r1cs:rlt _ _) (r1cs:rgeq _ _) (r1cs:rgt _ _)
+                (r1cs:rmod _ _))
+            (picus:tool-error "not supported: ~a" e)]
+           [_ (fallback e)]))))
 
     (define/public (encode-smt arg-r1cs)
       (cvc5-rint:interpret-r1cs arg-r1cs))
