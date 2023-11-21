@@ -4,16 +4,15 @@ This keeps track of some development notes.
 
 ## Installing cvc5-ff
 
-If you are installing it Docker, checkout `Dockerfile@base` in `resources/` folder.
+If you are installing it for Docker, checkout `Dockerfile@base` in `resources/` folder.
 
-1. Clone [https://github.com/alex-ozdemir/CVC4/](https://github.com/alex-ozdemir/CVC4/) and check out branch `ff`. It's updated frequently, this note works on `ddcecc5`.
-2. Download CoCoALib (0.99800 tested) from [https://cocoa.dima.unige.it/cocoa/](https://cocoa.dima.unige.it/cocoa/). Follow its instruction to install it first.
-3. Go back to `CVC4/`, run `./configure.sh --cocoa --auto-download`. Make sure you resolve all dependencies mentioned by the output of the script.
-4. Apply the patch `CVC4/cmake/deps-utils/CoCoALib-0.99800-trace.patch` to `CoCoALib` (note: you may need to temporarily change `CoCoALib-XXX` to `a`).
-5. Follow instructions from CoCoALib to compile and install it again.
-6. Clone the latest (not the release, `d2cc42c` tested) version of [https://github.com/SRI-CSL/libpoly.git](https://github.com/SRI-CSL/libpoly.git). Follow its instruction to install it. Note that if your computer already has `poly/` in `/usr/local/include/`, you may need to manually delete it. Then for the cmake argument when installing, go with `cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local`.
-7. Go back to `CVC4/`, run `./configure.sh --cocoa --auto-download` again. Then go to `CVC4/build/` and do `make -j4 install`.
-8. Then `cvc5` should be ready from commandline with `ff` theory support.
+If you use Mac, make sure that you have `brew` installed.
+
+1. Clone [https://github.com/cvc5/cvc5](https://github.com/cvc5/cvc5). (Known to work with version `de62429`.)
+2. Install `libgmp`. E.g., on Ubuntu, run `apt install libgmp-dev`. On Mac, run `brew install gmp`.
+3. Run `pip3 install tomli scikit-build Cython`. If you use Mac, make sure that your Python is not the one installed by default with Mac. (Use `brew install python` -- known to work with Python 3.12.)
+4. Run `./configure.sh --cocoa --auto-download --python-bindings`.
+5. Go to the `build` subdirectory and run `make -j4 install`.
 
 ## The Circom DSL
 

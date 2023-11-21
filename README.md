@@ -49,7 +49,7 @@ Building from source is not recommended if you just want to quickly run and chec
 - z3 solver (4.10.2+ Required): [https://github.com/Z3Prover/z3](https://github.com/Z3Prover/z3)
   - older version may touch buggy corner cases
 
-- cvc5-ff: [https://github.com/alex-ozdemir/CVC4/tree/ff](https://github.com/alex-ozdemir/CVC4/tree/ff)
+- cvc5: [https://github.com/cvc5/cvc5](https://github.com/cvc5/cvc5) with finite field theory suport
   - see installation instructions [here](./NOTES.md#installing-cvc5-ff)
 
 ### Basic Testing Instructions
