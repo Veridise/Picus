@@ -1,4 +1,4 @@
-name: Docker Base Image
+name: Docker Base Image Push
 
 on: workflow_dispatch
 

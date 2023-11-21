@@ -25,6 +25,20 @@ RUN set -x && \
         jq \
         time
 
+# fetch cvc5-ff
+RUN pip install tomli scikit-build Cython && \
+    git clone https://github.com/cvc5/cvc5.git --single-branch && \
+    cd cvc5 && \
+    git checkout de62429
+
+# compile and install cvc5-ff
+RUN cd ./cvc5/ && \
+    ./configure.sh --cocoa --auto-download --python-bindings --ninja && \
+    cd ./build/ && \
+    cmake --build . && \
+    cmake --install . && \
+    cd ../.. && rm -r ./cvc5
+
 # racket and rosette and other racket packages
 ARG DEBIAN_FRONTEND=noninteractive
 RUN add-apt-repository -y ppa:plt/racket && \
@@ -51,38 +65,5 @@ RUN wget https://github.com/Z3Prover/z3/releases/download/z3-4.11.0/z3-4.11.0-x6
     unzip z3-4.11.0-x64-glibc-2.31.zip && \
     cp z3-4.11.0-x64-glibc-2.31/bin/z3 /bin/ && \
     rm -r z3-4.11.0-x64-glibc-2.31/
-
-# install libpoly
-RUN git clone https://github.com/SRI-CSL/libpoly.git && \
-    cd ./libpoly/ && \
-    cd ./build/ && \
-    cmake .. -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local && \
-    cmake --build . && \
-    cmake --install . && \
-    cd ../../ && rm -r ./libpoly
-
-# fetch cvc5-ff
-RUN pip install toml && \
-    git clone https://github.com/alex-ozdemir/CVC4.git -b ff --single-branch && \
-    cd ./CVC4 && \
-    git checkout ddcecc5
-
-# compile and install CoCoALib with patch from cvc5-ff
-RUN wget https://cocoa.dima.unige.it/cocoa/cocoalib/tgz/CoCoALib-0.99800.tgz && \
-    tar -xvzf CoCoALib-0.99800.tgz &&\
-    patch -s -p1 -d ./CoCoALib-0.99800 < ./CVC4/cmake/deps-utils/CoCoALib-0.99800-trace.patch && \
-    cd CoCoALib-0.99800/ && \
-    ./configure && \
-    make && \
-    make install && \
-    cd .. && rm -r ./CoCoALib-0.99800
-
-# compile and install cvc5-ff
-RUN cd ./CVC4/ && \
-    ./configure.sh --cocoa --auto-download --ninja && \
-    cd ./build/ && \
-    cmake --build . && \
-    cmake --install . && \
-    cd ../.. && rm -r ./CVC4
 
 CMD [ "/bin/bash" ]
