@@ -187,10 +187,10 @@
 (define/caller (picus:log-accounting* #:type entry-type
                                       #:unit [entry-unit "unit"]
                                       #:value [entry-value 1]
-                                      #:msg [msg ""])
+                                      #:msg [msg #f])
   #:caller caller
-
-  (picus:log-accounting "~a" msg
+  (picus:log-accounting "stats: ~a = ~a ~a~a" entry-type entry-value entry-unit
+                        (if msg (format " (~a)" msg) "")
                         #:extra (hash 'entry_type entry-type
                                       'entry_unit entry-unit
                                       'entry_value entry-value
