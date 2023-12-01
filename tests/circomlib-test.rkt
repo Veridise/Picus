@@ -56,6 +56,7 @@
                     (vector "--solver" "cvc5"
                             "--timeout" "5000"
                             "--patch-circom"
+                            "--log-level" "ACCOUNTING"
                             "--wtns" "."
                             (~a (build-path
                                  benchmark-dir
