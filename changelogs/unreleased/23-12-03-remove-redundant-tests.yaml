@@ -1,0 +1,2 @@
+removed:
+  - Removed redundant tests -- the circom-bigint directory already contains the exact same tests.
