@@ -21,9 +21,9 @@
   (picus:log-debug "[solver] smt path: ~a" temp-path)
   (picus:log-progress "[solver] solving...")
   (define-values (sp out in err)
-    ; (note) use `apply` to expand the last argument
-    ; (apply subprocess #f #f #f (find-executable-path "cvc5") (list temp-path))
-    (apply subprocess #f #f #f (find-executable-path executable) temp-path options))
+    (apply subprocess #f #f #f
+           (or (getenv "SOLVER_PATH") (find-executable-path executable))
+           temp-path options))
 
   (close-output-port in)
 
