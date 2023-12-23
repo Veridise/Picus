@@ -33,7 +33,7 @@
   (run-test
    #:setup
    (with-framework
-     #:json? #f
+     #:json-target #f
      #:truncate? #f
      #:level "ERROR"
      (λ ()
@@ -52,7 +52,7 @@
   (run-test
    #:setup
    (with-framework
-     #:json? #f
+     #:json-target #f
      #:truncate? #f
      #:level "INFO"
      (λ ()
@@ -71,9 +71,9 @@
   (run-test
    #:setup
    (with-framework
-     #:json? #t
+     #:json-target "-"
      #:truncate? #f
-     #:level #f
+     #:level "INFO"
      (λ ()
        (picus:log-error "foo")
        (picus:log-info "bar")
@@ -109,7 +109,7 @@
   (run-test
    #:setup
    (with-framework
-     #:json? #f
+     #:json-target #f
      #:truncate? #f
      #:level "INFO"
      (λ ()
@@ -130,7 +130,7 @@
   (run-test
    #:setup
    (with-framework
-     #:json? #f
+     #:json-target #f
      #:truncate? #f
      #:level "INFO"
      (λ ()
