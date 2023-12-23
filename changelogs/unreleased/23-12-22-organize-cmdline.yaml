@@ -1,0 +1,6 @@
+changed:
+  - Organized the `--help` page to be easier to read
+
+fixed:
+  - Fixed the default logging level that was accidentally changed in 8019f8780.
+  - Fixed `--help` descriptions that are out of sync.

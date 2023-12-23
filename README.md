@@ -96,26 +96,26 @@ If you see this, it means the environment that you are operating on is configure
 The following lists out all available options for running the tool.
 
 ```bash
-usage: picus.rkt [ <option> ... ] <source>
+usage: run-picus [ <option> ... ] <source>
   <source> must be a file with .circom or .r1cs extension
 
 <option> is one of
 
-  --json
-     enable json logging (default: false)
+  --json <json-target>
+     either:
+       - json logging output path; or
+       - '-', which suppresses the text logging mode and
+         outputs json logging to standard output
+     (default: no json output)
   --noclean
      do not clean up temporary files (default: false)
-  --patch-circom
-     patch circom file to add public inputs (only applicable for circom source, default: false)
-  --opt-level <p-opt-level>
-     optimization level for circom compilation (only applicable for circom source, default: 0)
-  --timeout <p-timeout>
-     timeout for every small query (default: 5000ms)
-  --solver <p-solver>
-     solver to use: z3 | cvc4 | cvc5 (default: cvc5)
-  --selector <p-selector>
-     selector to use: first | counter (default: counter)
-  --precondition <p-precondition>
+  --timeout <timeout>
+     timeout for SMT query (default: 5000ms)
+  --solver <solver>
+     solver to use: cvc4 | cvc5 | z3 (default: cvc5)
+  --selector <selector>
+     selector to use: counter | first (default: counter)
+  --precondition <precondition>
      path to precondition json (default: none)
   --noprop
      disable propagation (default: false / propagation on)
@@ -123,13 +123,23 @@ usage: picus.rkt [ <option> ... ] <source>
      disable solver phase (default: false / solver on)
   --strong
      check for strong safety (default: false)
-  --wtns <p-wtns>
+  --wtns <wtns>
      wtns files output directory (default: don't output)
-  --truncate <p-truncate>
-     truncate overly long logged message: on | off (default: off for --json, on otherwise)
-  --log-level <p-log-level>
-     The log-level for text logging (only applicable when --json is not supplied, default: INFO)
-     Possible levels (in the ascending order): DEBUG, PROGRESS, INFO, WARNING, ERROR, CRITICAL
+  --truncate <truncate>
+     truncate overly long logged message: on | off (default: on)
+  --log-level <log-level>
+     The log-level for text logging (default: INFO)
+     Possible levels (in the ascending order): DEBUG, ACCOUNTING, PROGRESS, INFO, WARNING, ERROR, CRITICAL
+
+ circom options (only applicable for circom source)
+
+  --patch-circom
+     patch circom file to add public inputs (default: false)
+  --opt-level <opt-level>
+     optimization level for circom compilation (default: 0)
+
+ other options
+
   --help, -h
      Show this help
   --
