@@ -2,7 +2,6 @@
 ; common require
 (require racket/runtime-path
          (prefix-in config: "./picus/config.rkt")
-         (prefix-in solver: "./picus/solver.rkt")
          (prefix-in r1cs: "./picus/r1cs/r1cs-grammar.rkt")
          (prefix-in dpvl: "./picus/algorithms/dpvl.rkt")
          (prefix-in pre: "./picus/precondition.rkt")
@@ -56,60 +55,73 @@
 
 (define source
   (command-line
+   #:program "run-picus"
    #:usage-help "<source> must be a file with .circom or .r1cs extension"
    #:once-each
    [("--json") json-target
                ["either:"
-                "  - json output path; or"
-                "  - '-', which suppresses the text mode and outputs json to standard output"
+                "  - json logging output path; or"
+                "  - '-', which suppresses the text logging mode and"
+                "    outputs json logging to standard output"
                 "(default: no json output)"]
                (set! arg-json-target json-target)]
    [("--noclean") "do not clean up temporary files (default: false)"
                   (set! arg-clean? #f)]
-   [("--patch-circom") "patch circom file to add public inputs (only applicable for circom source, default: false)"
-                       (set! arg-patch? #t)]
-   [("--opt-level") p-opt-level "optimization level for circom compilation (only applicable for circom source, default: 0)"
-                    (set! arg-opt-level
-                          (match p-opt-level
-                            [(or "0" "1" "2") p-opt-level]
-                            [_ (picus:user-error "unrecognized optimization level: ~a" p-opt-level)]))]
-   [("--timeout") p-timeout "timeout for every small query (default: 5000ms)"
-                  (set! arg-timeout (string->number p-timeout))]
-   [("--solver") p-solver
+   [("--timeout") timeout "timeout for SMT query (default: 5000ms)"
+                  (set! arg-timeout (string->number timeout))]
+   [("--solver") solver
                  [(gen-help-from-module solver-path
                                         "solver to use: ~a (default: ~a)"
                                         (send arg-solver get-name))]
-                 (set! arg-solver (load-from-module solver-path p-solver "valid selector: ~a"))]
-   [("--selector") p-selector
+                 (set! arg-solver (load-from-module solver-path solver "valid selector: ~a"))]
+   [("--selector") selector
                    [(gen-help-from-module selector-path
                                           "selector to use: ~a (default: ~a)"
                                           (send arg-selector get-name))]
-                   (set! arg-selector (load-from-module selector-path p-selector "valid selector: ~a"))]
-   [("--precondition") p-precondition "path to precondition json (default: none)"
-                       (set! arg-precondition p-precondition)]
+                   (set! arg-selector (load-from-module selector-path selector "valid selector: ~a"))]
+   [("--precondition") precondition "path to precondition json (default: none)"
+                       (set! arg-precondition precondition)]
    [("--noprop") "disable propagation (default: false / propagation on)"
                  (set! arg-prop #f)]
    [("--nosolve") "disable solver phase (default: false / solver on)"
                   (set! arg-slv #f)]
    [("--strong") "check for strong safety (default: false)"
                  (set! arg-strong #t)]
-   [("--wtns") p-wtns
+   [("--wtns") wtns
                "wtns files output directory (default: don't output)"
-               (set! arg-wtns p-wtns)]
-   [("--truncate") p-truncate
-                   "truncate overly long logged message (this does not affect the json target): on | off (default: on)"
-                   (match p-truncate
+               (set! arg-wtns wtns)]
+   [("--truncate") truncate
+                   "truncate overly long logged message: on | off (default: on)"
+                   (match truncate
                      ["on" (set! arg-truncate? #t)]
                      ["off" (set! arg-truncate? #f)]
-                     [_ (picus:user-error "truncate mode can only be either on or off")])]
-   [("--log-level") p-log-level
-                    ["The log-level for text logging (only applicable when --json is not supplied, default: ACCOUNTING)"
+                     [_ (picus:user-error "unrecognized truncate mode: ~a" truncate)])]
+   [("--log-level") log-level
+                    ["The log-level for text logging (default: INFO)"
                      (format "Possible levels (in the ascending order): ~a"
                              (string-join (get-levels) ", "))]
                     (cond
-                      [(member p-log-level (get-levels))
-                       (set! arg-log-level p-log-level)]
-                      [else (picus:user-error "unrecognized log-level: ~a" p-log-level)])]
+                      [(member log-level (get-levels))
+                       (set! arg-log-level log-level)]
+                      [else (picus:user-error "unrecognized log-level: ~a" log-level)])]
+
+   #:help-labels
+   ""
+   "circom options (only applicable for circom source)"
+   ""
+   #:once-each
+   [("--patch-circom") "patch circom file to add public inputs (default: false)"
+                       (set! arg-patch? #t)]
+   [("--opt-level") opt-level "optimization level for circom compilation (default: 0)"
+                    (set! arg-opt-level
+                          (match opt-level
+                            [(or "0" "1" "2") opt-level]
+                            [_ (picus:user-error "unrecognized optimization level: ~a" opt-level)]))]
+
+   #:help-labels
+   ""
+   "other options"
+   ""
    #:args (source)
    (cond
      [(or (circom-file? source) (r1cs-file? source)) source]
@@ -346,7 +358,7 @@
 
 (module+ main
   (with-framework
-    #:level (or arg-log-level "ACCOUNTING")
+    #:level (or arg-log-level "INFO")
     #:json-target arg-json-target
     #:truncate? arg-truncate?
     main))
