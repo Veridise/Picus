@@ -51,22 +51,25 @@
 
     (struct exit-code (code) #:transparent)
 
+    (define bench-path (~a (build-path
+                            benchmark-dir
+                            (format "~a.circom" filename))))
+
     (parameterize ([current-namespace (make-base-namespace)]
                    [current-command-line-arguments
                     (vector "--solver" "cvc5"
                             "--timeout" "5000"
                             "--patch-circom"
+                            "--json" (~a (path-replace-extension bench-path ".json"))
                             "--log-level" "ACCOUNTING"
                             "--wtns" "."
-                            (~a (build-path
-                                 benchmark-dir
-                                 (format "~a.circom" filename))))]
+                            bench-path)]
                    [current-output-port out])
       (define (run-picus-thunk)
         (set! ret-code
               (with-handlers ([exit-code? exit-code-code])
                 (parameterize ([exit-handler (λ (code) (raise (exit-code code)))])
-                  (dynamic-require picus #f)))))
+                  (dynamic-require (list 'submod picus 'main) #f)))))
       (define main-thd
         (thread (λ ()
                   (match-define-values (_ cpu real gc)

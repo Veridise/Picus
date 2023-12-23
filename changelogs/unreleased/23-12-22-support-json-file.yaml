@@ -1,0 +1,8 @@
+added:
+  - Supported generating JSON output file simultaneously with
+    the regular text outputting mode.
+changed:
+  - The previous `--json` command-line option is now equivalent to `--json -`.
+  - Users must now set `--truncate` and `--log-level` explicitly for the `--json` mode.
+  - The main Picus application is now under the `main` submodule.
+    To invoke it programmatically, use `(submod ... main)`.
