@@ -21,8 +21,8 @@
 ; ======== commandline parsing ========
 ; =====================================
 ; parse command line arguments
-(define arg-json? #f)
-(define arg-truncate? 'unset)
+(define arg-json-target #f)
+(define arg-truncate? #t)
 (define arg-patch? #f)
 (define arg-opt-level #f)
 (define arg-clean? #t)
@@ -58,8 +58,12 @@
   (command-line
    #:usage-help "<source> must be a file with .circom or .r1cs extension"
    #:once-each
-   [("--json") "enable json logging (default: false)"
-               (set! arg-json? #t)]
+   [("--json") json-target
+               ["either:"
+                "  - json output path; or"
+                "  - '-', which suppresses the text mode and outputs json to standard output"
+                "(default: no json output)"]
+               (set! arg-json-target json-target)]
    [("--noclean") "do not clean up temporary files (default: false)"
                   (set! arg-clean? #f)]
    [("--patch-circom") "patch circom file to add public inputs (only applicable for circom source, default: false)"
@@ -93,13 +97,13 @@
                "wtns files output directory (default: don't output)"
                (set! arg-wtns p-wtns)]
    [("--truncate") p-truncate
-                   "truncate overly long logged message: on | off (default: off for --json, on otherwise)"
+                   "truncate overly long logged message (this does not affect the json target): on | off (default: on)"
                    (match p-truncate
                      ["on" (set! arg-truncate? #t)]
                      ["off" (set! arg-truncate? #f)]
                      [_ (picus:user-error "truncate mode can only be either on or off")])]
    [("--log-level") p-log-level
-                    ["The log-level for text logging (only applicable when --json is not supplied, default: INFO)"
+                    ["The log-level for text logging (only applicable when --json is not supplied, default: ACCOUNTING)"
                      (format "Possible levels (in the ascending order): ~a"
                              (string-join (get-levels) ", "))]
                     (cond
@@ -113,15 +117,12 @@
 
 (define (main)
   (unless (implies arg-opt-level (circom-file? source))
-    (picus:user-error "--opt-level only applicable for circom source"))
+    (picus:user-error "'--opt-level' only applicable for circom source"))
 
   (define opt-level (or arg-opt-level "0"))
 
   (unless (implies arg-patch? (circom-file? source))
-    (picus:user-error "--patch-circom only applicable for circom source"))
-
-  (unless (implies arg-log-level (not arg-json?))
-    (picus:user-error "--log-level only applicable when --json is not given"))
+    (picus:user-error "'--patch-circom' only applicable for circom source"))
 
   (define (invoke-system cmd . args)
     (define outp (open-output-string))
@@ -343,10 +344,9 @@
      (picus:log-main "Cannot determine whether the circuit is properly constrained")
      (picus:exit exit-code:unknown)]))
 
-(with-framework
-  #:level (or arg-log-level "INFO")
-  #:json? arg-json?
-  #:truncate? (match arg-truncate?
-                ['unset (not arg-json?)]
-                [_ arg-truncate?])
-  main)
+(module+ main
+  (with-framework
+    #:level (or arg-log-level "ACCOUNTING")
+    #:json-target arg-json-target
+    #:truncate? arg-truncate?
+    main))
