@@ -1,0 +1,9 @@
+FROM veridise/picus:base
+
+RUN source "$HOME/.cargo/env" && \
+    git clone https://github.com/sorawee/circom.git && \
+    cd circom/ && \
+    git checkout tag-in-out && \
+    cargo build --release && \
+    cargo install --path circom && \
+    cd .. && rm -rf circom/
