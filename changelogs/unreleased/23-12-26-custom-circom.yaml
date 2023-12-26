@@ -1,0 +1,4 @@
+added:
+  - Added a Docker image to build a custom circom with the command-flag `--info`
+    which produces an info file for modular reasoning, along with
+    a GitHub Actions workflow to build the image.
