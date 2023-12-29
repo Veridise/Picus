@@ -39,6 +39,31 @@ RUN cd ./cvc5/ && \
     cmake --install . && \
     cd ../.. && rm -r ./cvc5
 
+# install z3 executable, with header files for cvc5 with ff-range
+RUN git clone https://github.com/Z3Prover/z3.git --single-branch && \
+    cd z3 && \
+    git checkout ec2b8eb && \
+    mkdir build && \
+    cd build && \
+    cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DZ3_BUILD_LIBZ3_SHARED=FALSE ../ && \
+    make && \
+    make install && \
+    cd ../.. && rm -rf z3
+
+# fetch cvc5 with ff-range
+# temporarily move the previously installed cvc5 away to prevent collision
+RUN mv /usr/local/bin/cvc5 /usr/local/bin/cvc5-regular && \
+    git clone https://github.com/alex-ozdemir/CVC4.git && \
+    cd CVC4 && \
+    git checkout 2ef8b43 && \
+    ./configure.sh --cocoa --auto-download --python-bindings --ninja && \
+    cd ./build/ && \
+    cmake --build . && \
+    cmake --install . && \
+    cd ../.. && rm -r ./CVC4 && \
+    mv /usr/local/bin/cvc5 /usr/local/bin/cvc5-ff-range && \
+    mv /usr/local/bin/cvc5-regular /usr/local/bin/cvc5
+
 # racket and rosette and other racket packages
 ARG DEBIAN_FRONTEND=noninteractive
 RUN add-apt-repository -y ppa:plt/racket && \
@@ -59,11 +84,5 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
     cargo build --release && \
     cargo install --path circom && \
     cd .. && rm -rf circom/
-
-# install z3
-RUN wget https://github.com/Z3Prover/z3/releases/download/z3-4.11.0/z3-4.11.0-x64-glibc-2.31.zip && \
-    unzip z3-4.11.0-x64-glibc-2.31.zip && \
-    cp z3-4.11.0-x64-glibc-2.31/bin/z3 /bin/ && \
-    rm -r z3-4.11.0-x64-glibc-2.31/
 
 CMD [ "/bin/bash" ]
