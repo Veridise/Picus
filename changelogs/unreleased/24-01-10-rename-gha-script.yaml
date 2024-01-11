@@ -1,0 +1,2 @@
+fixed:
+  - Added a missing extension to a GitHub Actions' workflow so that it can be run.
