@@ -2,13 +2,15 @@
 
 (provide get-tmpdir
          clean-tmpdir!)
-(require racket/file)
+(require racket/file
+         "logging.rkt")
 
 (define tmpdir #f)
 
 (define (get-tmpdir)
   (unless tmpdir
-    (set! tmpdir (make-temporary-directory "picus~a")))
+    (set! tmpdir (make-temporary-directory "picus~a"))
+    (picus:log-info "working directory: ~a" tmpdir))
   tmpdir)
 
 (define (clean-tmpdir!)

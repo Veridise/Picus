@@ -15,10 +15,10 @@ jobs:
     strategy:
       matrix:
         param:
-          - --solver cvc5                              ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.r1cs
-          - --solver z3                                ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.r1cs
-          - --solver cvc5 --opt-level 0                ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.circom
-          - --solver cvc5 --opt-level 2 --patch-circom ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.circom
+          - --solver cvc5                ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.r1cs
+          - --solver z3                  ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.r1cs
+          - --solver cvc5 --opt-level 0  ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.circom
+          - --solver cvc5 --opt-level 2  ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.circom
     runs-on: ubuntu-latest
     container: 
       image: veridise/picus:git-latest

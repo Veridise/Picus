@@ -3,7 +3,7 @@
 (provide gen-witness)
 
 (require racket/match
-         (prefix-in r1cs: "r1cs/r1cs-grammar.rkt")
+         racket/class
          "logging.rkt"
          "exit.rkt")
 
@@ -22,9 +22,9 @@
     (cons 1 (map cdr (sort (append in out other) < #:key car))))
   (define m1 (get-model out1 other1))
   (define m2 (get-model out2 other2))
-  (define fs (r1cs:get-field-size r0))
+  (define fs (send r0 get-field-size))
   (define (do-gen m name)
-    (unless (= (r1cs:get-nwires r0) (length m))
+    (unless (= (send r0 get-num-wires) (length m))
       (picus:tool-error "witness list incomplete: ~a" m))
     (picus:log-info "writing a wtns file ~a" name)
     (with-output-to-file name
@@ -46,7 +46,7 @@
         ;; field size (4 bytes)
         (write-bytes (integer->integer-bytes fs 4 #f))
         ;; prime number (fs bytes)
-        (write-number (r1cs:get-prime-number r0) fs)
+        (write-number (send r0 get-prime-number) fs)
         ;; witness length (4 bytes)
         (write-bytes (integer->integer-bytes (length m1) 4 #f))
 
