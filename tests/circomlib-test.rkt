@@ -59,7 +59,6 @@
                    [current-command-line-arguments
                     (vector "--solver" "cvc5"
                             "--timeout" "5000"
-                            "--patch-circom"
                             "--json" (~a (path-replace-extension bench-path ".json"))
                             "--log-level" "ACCOUNTING"
                             "--wtns" "."

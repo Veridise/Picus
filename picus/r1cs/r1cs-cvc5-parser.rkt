@@ -13,7 +13,7 @@
 ;   - (values varlist declarations constraints)
 (define (parse-r1cs arg-r1cs prefix)
   ; first create a list of all symbolic variables according to nwires
-  (define nwires (r1cs:get-nwires arg-r1cs))
+  (define nwires (send arg-r1cs get-num-wires))
   ; strictly align with wid
   (define varvec (for/vector ([i nwires]) (format "~a~a" prefix i)))
 
@@ -25,7 +25,7 @@
 
   ; symbolic constraints
   (define sconstraints
-    (for/list ([cnst (r1cs:get-constraints arg-r1cs)])
+    (for/list ([cnst (send arg-r1cs get-constraints)])
 
       ; get block
       (define curr-block-a (r1cs:constraint-a cnst))

@@ -2,18 +2,17 @@
 ; common require
 (require racket/runtime-path
          (prefix-in config: "./picus/config.rkt")
-         (prefix-in r1cs: "./picus/r1cs/r1cs-grammar.rkt")
          (prefix-in dpvl: "./picus/algorithms/dpvl.rkt")
          (prefix-in pre: "./picus/precondition.rkt")
          "picus/tmpdir.rkt"
          "picus/ansi.rkt"
-         "picus/global-inputs.rkt"
          "picus/logging.rkt"
          "picus/framework.rkt"
          "picus/exit.rkt"
          "picus/gen-witness.rkt")
 
 (define-runtime-path selector-path "picus/algorithms/selector.rkt")
+(define-runtime-path reader-path "picus/reader.rkt")
 (define-runtime-path solver-path "picus/solver.rkt")
 
 ; =====================================
@@ -22,7 +21,6 @@
 ; parse command line arguments
 (define arg-json-target #f)
 (define arg-truncate? #t)
-(define arg-patch? #f)
 (define arg-opt-level #f)
 (define arg-clean? #t)
 (define arg-timeout 5000)
@@ -35,25 +33,28 @@
 (define arg-log-level #f)
 (define arg-wtns #f)
 
-(define (circom-file? path)
-  (string-suffix? path ".circom"))
-
-(define (r1cs-file? path)
-  (string-suffix? path ".r1cs"))
-
 (define (get-exports path)
   (define-values (exports _) (module->exports path))
-  (for/list ([export (in-list (dict-ref exports 0))])
+  (for/list ([export (in-list (dict-ref exports 0 '()))])
     (symbol->string (first export))))
 
 (define (load-from-module path name fmt)
-  (dynamic-require path (string->symbol name)
-                   (λ () (picus:user-error fmt (string-join (get-exports path) " | ")))))
+  (dynamic-require
+   path (string->symbol name)
+   (λ ()
+     (picus:user-error fmt
+                       (string-join (get-exports path) " | ")
+                       name))))
 
 (define (gen-help-from-module path fmt def)
   (format fmt (string-join (get-exports path) " | ") def))
 
-(define source
+(define (extract-extension path)
+  (match (path-get-extension path)
+    [#f "no extension"]
+    [bs (substring (bytes->string/utf-8 bs) 1)]))
+
+(define reader
   (command-line
    #:program "run-picus"
    #:usage-help "<source> must be a file with .circom or .r1cs extension"
@@ -73,12 +74,12 @@
                  [(gen-help-from-module solver-path
                                         "solver to use: ~a (default: ~a)"
                                         (send arg-solver get-name))]
-                 (set! arg-solver (load-from-module solver-path solver "valid selector: ~a"))]
+                 (set! arg-solver (load-from-module solver-path solver "valid solver: ~a, got ~a"))]
    [("--selector") selector
                    [(gen-help-from-module selector-path
                                           "selector to use: ~a (default: ~a)"
                                           (send arg-selector get-name))]
-                   (set! arg-selector (load-from-module selector-path selector "valid selector: ~a"))]
+                   (set! arg-selector (load-from-module selector-path selector "valid selector: ~a, got ~a"))]
    [("--precondition") precondition "path to precondition json (default: none)"
                        (set! arg-precondition precondition)]
    [("--noprop") "disable propagation (default: false / propagation on)"
@@ -87,9 +88,6 @@
                   (set! arg-slv #f)]
    [("--strong") "check for strong safety (default: false)"
                  (set! arg-strong #t)]
-   [("--wtns") wtns
-               "wtns files output directory (default: don't output)"
-               (set! arg-wtns wtns)]
    [("--truncate") truncate
                    "truncate overly long logged message: on | off (default: on)"
                    (match truncate
@@ -110,8 +108,6 @@
    "circom options (only applicable for circom source)"
    ""
    #:once-each
-   [("--patch-circom") "patch circom file to add public inputs (default: false)"
-                       (set! arg-patch? #t)]
    [("--opt-level") opt-level "optimization level for circom compilation (default: 0)"
                     (set! arg-opt-level
                           (match opt-level
@@ -120,98 +116,31 @@
 
    #:help-labels
    ""
+   "circom and r1cs options (only applicable for circom and r1cs source)"
+   ""
+   #:once-each
+   [("--wtns") wtns
+               "wtns files output directory (default: don't output)"
+               (set! arg-wtns wtns)]
+
+   #:help-labels
+   ""
    "other options"
    ""
    #:args (source)
-   (cond
-     [(or (circom-file? source) (r1cs-file? source)) source]
-     [else (picus:user-error "file needs to have suffix .circom or .r1cs, got ~a" source)])))
+   ((load-from-module reader-path
+                      (extract-extension source)
+                      "valid file extension: ~a, got ~a")
+    source)))
 
 (define (main)
-  (unless (implies arg-opt-level (circom-file? source))
-    (picus:user-error "'--opt-level' only applicable for circom source"))
-
-  (define opt-level (or arg-opt-level "0"))
-
-  (unless (implies arg-patch? (circom-file? source))
-    (picus:user-error "'--patch-circom' only applicable for circom source"))
-
-  (define (invoke-system cmd . args)
-    (define outp (open-output-string))
-    (define ret
-      (parameterize ([current-output-port outp]
-                     [current-error-port outp])
-        (apply system* cmd args)))
-    (values ret (get-output-string outp)))
-
-  ;; compile-circom :: path? -> path?
-  ;; compile circom file to r1cs file
-  (define (compile-circom circom-path)
-    (define-values (ret out)
-      (invoke-system (find-executable-path "circom")
-                     "-o"
-                     (get-tmpdir)
-                     "--r1cs"
-                     circom-path
-                     "--sym"
-                     (match opt-level
-                       ["0" "--O0"]
-                       ["1" "--O1"]
-                       ["2" "--O2"])))
-    (cond
-      [ret (picus:log-debug "circom output: ~a" out)]
-      [else
-       (picus:log-error "[circom] ~a" out)
-       (picus:user-error "circom compilation failed")])
-    (~a (build-path
-         (get-tmpdir)
-         (file-name-from-path (path-replace-extension circom-path ".r1cs")))))
-
-  ;; compile+patch-circom :: path? boolean? -> (values path? r1cs?)
-  (define (compile+patch-circom circom-path patch?)
-    (define r1cs-path (compile-circom circom-path))
-    (cond
-      [patch?
-       (define r0 (r1cs:read-r1cs r1cs-path))
-       (cond
-         ;; no public inputs
-         [(zero? (r1cs:get-npubin r0))
-          (define patched-circom-path
-            (path-replace-extension circom-path ".patched.circom"))
-
-          (with-output-to-file patched-circom-path
-            #:exists 'replace
-            (λ ()
-              ;; HACK: this assumes that the circom file has a line with "component main ="
-              ;; which is the case for most circom files with no public inputs
-              (displayln
-               (string-replace
-                (file->string circom-path)
-                "component main ="
-                (format "component main {public [~a]} ="
-                        (string-join
-                         (get-global-inputs
-                          r1cs-path
-                          (path-replace-extension r1cs-path ".sym"))
-                         ", "))))))
-
-          (define patched-r1cs-path (compile-circom patched-circom-path))
-          (values patched-r1cs-path (r1cs:read-r1cs patched-r1cs-path))]
-         ;; already has public inputs
-         [else (values r1cs-path r0)])]
-      ;; not patching
-      [else (values r1cs-path (r1cs:read-r1cs r1cs-path))]))
-
-  (define-values (r1cs-path r0)
-    (cond
-      [(r1cs-file? source) (values source (r1cs:read-r1cs source))]
-      [else (compile+patch-circom source arg-patch?)]))
+  (define r0 (reader #:opt-level arg-opt-level))
+  (send r0 validate arg-wtns)
 
   (picus:log-debug "log level: ~a" arg-log-level)
-  (picus:log-debug "source format: ~a" (if (circom-file? source) "circom" "r1cs"))
-  (picus:log-debug "r1cs file: ~a" r1cs-path)
+  (picus:log-debug "source format: ~a" (send r0 get-format))
   (picus:log-debug "timeout: ~a" arg-timeout)
-  (picus:log-debug "solver: ~a" arg-solver)
+  (picus:log-debug "solver: ~a" (send arg-solver get-name))
   (picus:log-debug "selector: ~a" (send arg-selector get-name))
   (picus:log-debug "precondition: ~a" arg-precondition)
   (picus:log-debug "propagation enabled: ~a" arg-prop)
@@ -221,20 +150,19 @@
   ; ==================================
   ; ======== main preparation ========
   ; ==================================
-  (define nwires (r1cs:get-nwires r0))
-  (define mconstraints (r1cs:get-mconstraints r0))
-  (picus:log-debug "number of wires: ~a" nwires)
-  (picus:log-debug "number of constraints: ~a" mconstraints)
-  (picus:log-debug "field size (how many bytes): ~a" (r1cs:get-field-size r0))
-  (picus:log-debug "prime number: ~a" (r1cs:get-prime-number r0))
-  (config:set-p! (r1cs:get-prime-number r0))
+  (picus:log-debug "number of wires: ~a" (send r0 get-num-wires))
+  (picus:log-debug "number of constraints: ~a" (send r0 get-num-constraints))
+  (picus:log-debug "prime number: ~a" (send r0 get-prime-number))
+  (config:set-p! (send r0 get-prime-number))
 
   ; categorize signals
-  (define input-list (r1cs:r1cs-inputs r0))
+  (define input-list (send r0 get-top-level-inputs))
   (define input-set (list->set input-list))
-  (define output-list (r1cs:r1cs-outputs r0))
+  (define output-list (send r0 get-top-level-outputs))
   (define output-set (list->set output-list))
-  (define target-set (if arg-strong (list->set (range nwires)) (list->set output-list)))
+  (define target-set (if arg-strong
+                         (for/set ([i (in-range (send r0 get-num-wires))]) i)
+                         (list->set output-list)))
   (picus:log-debug "inputs: ~e" input-list)
   (picus:log-debug "outputs: ~e" output-list)
   (picus:log-debug "targets: ~e" target-set)
@@ -278,19 +206,18 @@
   ; p1cnsts
   ;    | (downstream queries)
   ;   ...
-  (define path-sym (string-replace r1cs-path ".r1cs" ".sym"))
   (picus:log-accounting #:type "started_algorithm")
   (match-define-values ((list res res-ks res-us readable-res-info raw-res-info) cpu real gc)
     (parameterize ([dpvl:current-selector arg-selector]
                    [dpvl:current-solver arg-solver])
       (time-apply (λ ()
                     (dpvl:apply-algorithm
-                     nwires
+                     r0
                      input-set output-set target-set
                      varlist (send arg-solver get-options) defs cnsts
                      alt-varlist alt-defs alt-cnsts
                      unique-set precondition ; prior knowledge row
-                     arg-prop arg-slv arg-timeout path-sym))
+                     arg-prop arg-slv arg-timeout))
                   '())))
 
   (picus:log-accounting #:type "finished_algorithm")
@@ -345,7 +272,7 @@
 
      (when arg-wtns
        (parameterize ([current-directory arg-wtns])
-         (gen-witness raw-res-info r0)))
+         (send r0 gen-witness-files raw-res-info)))
      (picus:exit exit-code:unsafe)]
     ['safe
      (picus:log-accounting #:type "finished_with_guarantee")
