@@ -133,8 +133,6 @@ usage: run-picus [ <option> ... ] <source>
 
  circom options (only applicable for circom source)
 
-  --patch-circom
-     patch circom file to add public inputs (default: false)
   --opt-level <opt-level>
      optimization level for circom compilation (default: 0)
 

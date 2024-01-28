@@ -1,7 +1,6 @@
 #lang racket
 ; this implements the decide & propagate verification loop algorithm
-(require csv-reading
-         (prefix-in r1cs: "../r1cs/r1cs-grammar.rkt")
+(require (prefix-in r1cs: "../r1cs/r1cs-grammar.rkt")
          (prefix-in selector: "./selector.rkt")
          (prefix-in solver: "../solver.rkt")
          ; lemmas
@@ -250,20 +249,6 @@
        [(equal? 'break s0) (values 'unsafe xnew-ks xnew-us info)]
        [else (picus:tool-error "unsupported s0 value, got: ~a" s0)])]))
 
-; this creates a new hash with r1cs variables replaced by corresponding circom variables
-; (note) when unmappable? is #f, this will remove helping variables like "one", "ps?", etc.
-;; map-to-vars :: (listof hash?), path-string? -> (listof hash?)
-(define (map-to-vars info path-sym)
-  (define rd (call-with-input-file* path-sym (λ (port) (csv->list port))))
-  ; create r1cs-id to circom-var mapping
-  (define r2c-map
-    (make-hash (for/list ([p rd]) (cons (list-ref p 0) (list-ref p 3)))))
-  (define (process-subinfo pinfo)
-    (for/list ([pair (in-list pinfo)]
-               #:do [(match-define (cons k val) pair)])
-      (cons (format "~a" (hash-ref r2c-map (number->string k))) val)))
-  (map process-subinfo info))
-
 ;; partition-vars :: (or/c '() hash?), set?, set? -> (list/c hash? hash? hash? hash? hash?)
 (define (partition-vars info input-set output-set)
   (define pinfo (if (list? info) (make-hash) info)) ; patch for info type, fix later
@@ -338,12 +323,12 @@
 ;   - (values 'unsafe ks us info)
 ;   - (values 'unknown ks us info)
 (define (apply-algorithm
-         nwires
+         r0
          input-set output-set target-set
          varlist opts defs cnsts
          alt-varlist alt-defs alt-cnsts
          unique-set precondition
-         arg-prop arg-slv arg-timeout path-sym
+         arg-prop arg-slv arg-timeout
          ; extra constraints, usually from cex module about partial model
          #:extcnsts [extcnsts (r1cs:rcmds (list ))]
          ; if true, then the query block will not be issued
@@ -355,7 +340,7 @@
   (set! total-gc 0)
 
   ; first load in all global variables
-  (set! :nwires nwires)
+  (set! :nwires (send r0 get-num-wires))
   (set! :input-set input-set)
   (set! :output-set output-set)
   (set! :target-set target-set)
@@ -494,14 +479,11 @@
     (hash-remove! info "x0")
     (hash-remove! info "y0"))
 
-  (define partitioned-info (sort-vars (partition-vars info input-set output-set)))
-
-  (unless (file-exists? path-sym)
-    (picus:log-warning "~a does not exist" path-sym))
+  (define partitioned-info
+    (sort-vars (partition-vars info input-set output-set)))
 
   (define mapped-info
-    (cond
-      [(file-exists? path-sym) (map-to-vars partitioned-info path-sym)]
-      [else partitioned-info]))
+    (for/list ([subinfo (in-list partitioned-info)])
+      (send r0 map-to-vars subinfo)))
 
   (values ret0 rks rus mapped-info partitioned-info))

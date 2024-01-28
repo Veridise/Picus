@@ -2,14 +2,14 @@
 
 (module+ test
   (require racket/sandbox
-           (prefix-in r1cs: "../picus/r1cs/r1cs-grammar.rkt")
+           "../picus/reader.rkt"
            (prefix-in cvc5-parser: "../picus/r1cs/r1cs-cvc5-parser.rkt")
            (prefix-in z3-parser: "../picus/r1cs/r1cs-z3-parser.rkt"))
 
   ;; read this within 20s or error
   (define r0
     (with-limits 20 #f
-      (r1cs:read-r1cs "../benchmarks/r1cs/TreeHasher.r1cs")))
+      ((r1cs "../benchmarks/r1cs/TreeHasher.r1cs") #:opt-level #f)))
 
   ;; generate constraints within 20s or error
   (with-limits 20 #f
