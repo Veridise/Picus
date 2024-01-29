@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  configuration-test:
+  configuration-test-unsafe:
     strategy:
       matrix:
         param:
@@ -16,6 +16,7 @@ jobs:
           - --solver z3                  ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.r1cs
           - --solver cvc5 --opt-level 0  ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.circom
           - --solver cvc5 --opt-level 2  ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.circom
+          - ./tests/sr1cs/unsafe.sr1cs
     runs-on: ubuntu-latest
     container: 
       image: veridise/picus:git-latest
@@ -40,6 +41,40 @@ jobs:
       - name: test expected result
         run: |
           grep "^The circuit is underconstrained$" ./result.out
+
+  configuration-test-safe:
+    strategy:
+      matrix:
+        param:
+          - --solver cvc5                ./benchmarks/circomlib-cff5ab6/AND@gates.r1cs
+          - --solver z3                  ./benchmarks/circomlib-cff5ab6/AND@gates.r1cs
+          - --solver cvc5 --opt-level 0  ./benchmarks/circomlib-cff5ab6/AND@gates.circom
+          - --solver cvc5 --opt-level 2  ./benchmarks/circomlib-cff5ab6/AND@gates.circom
+          - ./tests/sr1cs/safe.sr1cs
+    runs-on: ubuntu-latest
+    container:
+      image: veridise/picus:git-latest
+    env:
+      PLTADDONDIR: /root/.local/share/racket/
+    steps:
+      - uses: actions/checkout@v1
+      - name: linking circom
+        run: ln -s /root/.cargo/bin/circom /usr/bin/circom
+      - name: compile circomlib
+        run: bash ./scripts/prepare-circomlib.sh
+      - name: run picus with param ${{ matrix.param }}
+        run: |
+          set +e
+          racket ./picus.rkt ${{ matrix.param }} | tee result.out
+          code=$?
+          if [ $code -ne 8 ]; then
+            echo "original exit code: $code"
+            exit 1
+          fi
+        shell: bash # this ensures that pipefail is set
+      - name: test expected result
+        run: |
+          grep "^The circuit is properly constrained$" ./result.out
 
   wtns-test:
     runs-on: ubuntu-latest
@@ -97,7 +132,12 @@ jobs:
           raco test ./tests/framework-test.rkt
 
   publish-docker:
-    needs: [wtns-test, configuration-test, main-test, misc-test]
+    needs:
+      - wtns-test
+      - configuration-test-unsafe
+      - configuration-test-safe
+      - main-test
+      - misc-test
     name: "Publish Docker image to DockerHub"
     if: github.event_name == 'push' && github.repository == 'Veridise/picus-private'
     runs-on: ubuntu-latest

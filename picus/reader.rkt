@@ -1,7 +1,8 @@
 #lang racket/base
 
 (provide r1cs
-         circom)
+         circom
+         sr1cs)
 
 (require racket/class
          racket/list
@@ -145,3 +146,88 @@
                     (file-name-from-path
                      (path-replace-extension source ".r1cs"))))]
        [source-format "circom"]))
+
+(define ((sr1cs source) #:opt-level [opt-level #f])
+  (when opt-level
+    (picus:user-error "'--opt-level' only applicable for circom source"))
+
+  (define data (file->list source))
+
+  (define input-list '())
+  (define output-list '())
+  (define num-wires #f)
+  (define constraints '())
+  (define extra-constraints '())
+  (define prime #f)
+
+  (define (first+fix xs)
+    (define x (first xs))
+    (if (< x 0) (+ x prime) x))
+
+  (for ([entry (in-list data)])
+    (match entry
+      [(list 'in (list (cons (? number? id) _)))
+       (set! input-list (cons id input-list))]
+      [(list 'out (list (cons (? number? id) _)))
+       (set! output-list (cons id output-list))]
+      [(list 'num-wires val)
+       (set! num-wires val)]
+      [(list 'prime-number val)
+       (set! prime val)]
+      [(list 'extra-constraint fml)
+       (set! extra-constraints (cons fml extra-constraints))]
+      [(list 'constraint a b c)
+       (set! constraints
+             (cons (r1cs:constraint (r1cs:constraint-block (length a) (map second a) (map first+fix a))
+                                    (r1cs:constraint-block (length b) (map second b) (map first+fix b))
+                                    (r1cs:constraint-block (length c) (map second c) (map first+fix c)))
+                   constraints))]))
+
+  (set! constraints (reverse constraints))
+  (set! extra-constraints (reverse extra-constraints))
+  (set! input-list (reverse input-list))
+  (set! output-list (reverse output-list))
+  (define num-constraints (length constraints))
+
+  (new (class* object% (r1cs-interface<%>)
+         (super-new)
+
+         (define/public (validate gen-witness)
+           (when gen-witness
+             (picus:user-error "sr1cs does not support witness generation")))
+
+         (define/public (get-source)
+           source)
+
+         (define/public (get-format)
+           "sr1cs")
+
+         (define/public (get-num-wires)
+           num-wires)
+
+         (define/public (get-num-constraints)
+           num-constraints)
+
+         (define/public (get-prime-number)
+           prime)
+
+         (define/public (get-field-size)
+           #f)
+
+         (define/public (get-top-level-inputs)
+           input-list)
+
+         (define/public (get-top-level-outputs)
+           output-list)
+
+         (define/public (get-constraints)
+           constraints)
+
+         (define/public (get-extra-constraints)
+           extra-constraints)
+
+         (define/public (map-to-vars info)
+           info)
+
+         (define/public (gen-witness-files _raw-info)
+           (picus:tool-error "sr1cs does not support witness generation")))))
