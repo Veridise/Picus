@@ -164,6 +164,13 @@
     (define x (first xs))
     (if (< x 0) (+ x prime) x))
 
+  (define (interp fml)
+    (match fml
+      [`(< ,a ,b) (r1cs:rlt (interp a) (interp b))]
+      [`(var ,(list (cons (? number? id) _)))
+       (r1cs:rvar (format "x~a" id))]
+      [`(int ,x) (r1cs:rint x)]))
+
   (for ([entry (in-list data)])
     (match entry
       [(list 'in (list (cons (? number? id) _)))
@@ -175,7 +182,7 @@
       [(list 'prime-number val)
        (set! prime val)]
       [(list 'extra-constraint fml)
-       (set! extra-constraints (cons fml extra-constraints))]
+       (set! extra-constraints (cons (r1cs:rassert (interp fml)) extra-constraints))]
       [(list 'constraint a b c)
        (set! constraints
              (cons (r1cs:constraint (r1cs:constraint-block (length a) (map second a) (map first+fix a))

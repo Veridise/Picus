@@ -9,7 +9,7 @@
          "picus/logging.rkt"
          "picus/framework.rkt"
          "picus/exit.rkt"
-         "picus/gen-witness.rkt")
+         "picus/subst.rkt")
 
 (define-runtime-path selector-path "picus/algorithms/selector.rkt")
 (define-runtime-path reader-path "picus/reader.rkt")
@@ -216,7 +216,10 @@
                      input-set output-set target-set
                      varlist (send arg-solver get-options) defs cnsts
                      alt-varlist alt-defs alt-cnsts
-                     unique-set precondition ; prior knowledge row
+                     unique-set
+                     (append precondition ; prior knowledge row
+                             (map (λ (cnst) (cons "x series" cnst)) (send r0 get-extra-constraints))
+                             (map (λ (cnst) (cons "y series" cnst)) (subst-vars* (send r0 get-extra-constraints) convert-y)))
                      arg-prop arg-slv arg-timeout))
                   '())))
 
