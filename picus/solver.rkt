@@ -186,6 +186,7 @@
        (λ (e fallback)
          (let loop ([e e])
            (match e
+             [(r1cs:rlt a b) (format-op "ff.lt" loop (list a b))]
              [(r1cs:rint v) (printf "#f~am~a" v config:p)]
              [(r1cs:radd vs) (format-op "ff.add" loop vs)]
              [(r1cs:rmul vs) (format-op "ff.mul" loop vs)]
