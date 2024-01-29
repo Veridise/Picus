@@ -1,0 +1,6 @@
+added:
+  - Added a new test suite extracted from
+    the https://github.com/succinctlabs/gnark-plonky2-verifier/ audit.
+  - Added solvers/cvc5-int and solvers/cvc5-bitsum as quick entrypoints
+    for cvc5 ff-range invocation.
+  - Supported extra constraint clause in sr1cs.

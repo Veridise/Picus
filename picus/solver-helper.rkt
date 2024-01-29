@@ -11,6 +11,8 @@
          "exit.rkt"
          "tmpdir.rkt")
 
+(subprocess-group-enabled #t)
+
 (define ((make-solve #:executable executable
                      #:options [options '()])
          smt-str timeout #:verbose? [verbose? #f])
