@@ -31,6 +31,15 @@ func (c *TestGoldilocksExpCircuit) Define(api frontend.API) error {
 	glApi := goldilocks.New(api)
 	var e *big.Int
 	e = big.NewInt(32)
+
+	// technically, we should add an assumption that c.X is in the field
+	//
+	// glApi.RangeCheck(c.X)
+	// goldilocks.RangeCheck(c.X.Limb)
+	//
+	// but since it's already deemed safe even without the assumption,
+	// we will leave it at that.
+
 	glApi.AssertIsEqual(glApi.Exp(c.X, e), c.Y)
 	return nil
 }
