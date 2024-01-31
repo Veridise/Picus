@@ -1,0 +1,11 @@
+added:
+  - Supported variable labels for gnark
+  - Added a proper Go utility module for gnark constraint extraction
+    which lives at github.com/Veridise/picus_gnark.
+
+changed:
+  - Updated the sr1cs format to remove junk data
+
+removed:
+  - Moved the documentation for gnark integration
+    to github.com/Veridise/picus_gnark

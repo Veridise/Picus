@@ -89,6 +89,10 @@ Exiting Picus with the code 9
 
 If you see this, it means the environment that you are operating on is configured successfully.
 
+### gnark support 
+
+Picus supports gnark as well. See https://github.com/Veridise/picus_gnark for details.
+
 ## Reusability Instructions
 
 ### More Options and APIs of the Tool
