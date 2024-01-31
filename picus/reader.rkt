@@ -87,7 +87,7 @@
     (define/public (get-extra-constraints)
       '())
 
-    ;; r2-map :: (or/c 'uninitialized 'not-found (hash/c string? string?))
+    ;; r2c-map :: (or/c 'uninitialized 'not-found (hash/c string? string?))
     (define r2c-map 'uninitialized)
 
     (define/public (map-to-vars info)
@@ -167,16 +167,21 @@
   (define (interp fml)
     (match fml
       [`(< ,a ,b) (r1cs:rlt (interp a) (interp b))]
-      [`(var ,(list (cons (? number? id) _)))
+      [`(var ,(? number? id))
        (r1cs:rvar (format "x~a" id))]
       [`(int ,x) (r1cs:rint x)]))
 
+  ;; r2c-map ::  (hash/c number? symbol?)
+  (define r2c-map (make-hash))
+
   (for ([entry (in-list data)])
     (match entry
-      [(list 'in (list (cons (? number? id) _)))
+      [(list 'in (? number? id))
        (set! input-list (cons id input-list))]
-      [(list 'out (list (cons (? number? id) _)))
+      [(list 'out (? number? id))
        (set! output-list (cons id output-list))]
+      [(list 'label (? number? id) (? symbol? label))
+       (hash-set! r2c-map id label)]
       [(list 'num-wires val)
        (set! num-wires val)]
       [(list 'prime-number val)
@@ -234,7 +239,9 @@
            extra-constraints)
 
          (define/public (map-to-vars info)
-           info)
+           (for/list ([pair (in-list info)]
+                      #:do [(match-define (cons k val) pair)])
+             (cons (hash-ref r2c-map k k) val)))
 
          (define/public (gen-witness-files _raw-info)
            (picus:tool-error "sr1cs does not support witness generation")))))
