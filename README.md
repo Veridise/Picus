@@ -101,7 +101,7 @@ The following lists out all available options for running the tool.
 
 ```bash
 usage: run-picus [ <option> ... ] <source>
-  <source> must be a file with .circom or .r1cs extension
+  <source> must be a file with .circom, .r1cs, or .sr1cs extension
 
 <option> is one of
 
@@ -127,8 +127,6 @@ usage: run-picus [ <option> ... ] <source>
      disable solver phase (default: false / solver on)
   --strong
      check for strong safety (default: false)
-  --wtns <wtns>
-     wtns files output directory (default: don't output)
   --truncate <truncate>
      truncate overly long logged message: on | off (default: on)
   --log-level <log-level>
@@ -139,6 +137,11 @@ usage: run-picus [ <option> ... ] <source>
 
   --opt-level <opt-level>
      optimization level for circom compilation (default: 0)
+
+ circom and r1cs options (only applicable for circom and r1cs source)
+
+  --wtns <wtns>
+     wtns files output directory (default: don't output)
 
  other options
 
@@ -151,7 +154,7 @@ usage: run-picus [ <option> ... ] <source>
  one `-`. For example, `-h-` is the same as `-h --`.
 ```
 
-If `<source>` is a R1CS file, we highly recommend that the Circom compilation should use the `--O0` flag and with the `--sym` option.
+If `<source>` is a R1CS file from a Circom source, we highly recommend that the Circom compilation should use the `--O0` flag and with the `--sym` option.
 Otherwise, Picus may not be as effective as it can.
 
 ## Results interpretation
