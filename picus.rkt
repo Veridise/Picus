@@ -57,7 +57,7 @@
 (define reader
   (command-line
    #:program "run-picus"
-   #:usage-help "<source> must be a file with .circom or .r1cs extension"
+   #:usage-help "<source> must be a file with .circom, .r1cs, or .sr1cs extension"
    #:once-each
    [("--json") json-target
                ["either:"
