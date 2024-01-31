@@ -1,0 +1,2 @@
+fixed:
+  - Fixed sr1cs constraints in the benchmark not having proper assumptions

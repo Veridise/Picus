@@ -27,6 +27,10 @@ func (c *TestGoldilocksInverseCircuit) Define(api frontend.API) error {
 	annotateGVarIn(c.X)
 	annotateGVarOut(c.Y)
 	glApi := goldilocks.New(api)
+
+	glApi.RangeCheck(c.X)
+	// goldilocks.RangeCheck(c.X.Limb)
+
 	glApi.AssertIsEqual(glApi.Inverse(c.X), c.Y)
 	return nil
 }
