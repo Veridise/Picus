@@ -97,7 +97,7 @@ jobs:
           diff second-witness.wtns tests/data/second-witness.wtns.expect
 
   # run the full test with cvc5
-  main-test:
+  circomlib-test:
     strategy:
       matrix:
         id: [0, 1, 2, 3]
@@ -110,8 +110,13 @@ jobs:
       - uses: actions/checkout@v1
       - name: linking circom
         run: ln -s /root/.cargo/bin/circom /usr/bin/circom
-      - name: run picus with cvc5, using v3
+      - name: run picus with cvc5
         run: raco test ++args "--parallel ${{ matrix.id }} 4" ./tests/circomlib-test.rkt
+      - uses: actions/upload-artifact@v3
+        with:
+          name: test-circomlib-${{ github.sha }}
+          path: benchmarks/**/*.json
+          retention-days: 14
 
   misc-test:
     runs-on: ubuntu-latest
