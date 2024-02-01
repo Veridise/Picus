@@ -1,0 +1,3 @@
+changed:
+  - Logged the inferred known variable count to
+    see the progress of the algorithm.
