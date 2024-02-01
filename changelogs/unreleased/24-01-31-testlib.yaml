@@ -1,0 +1,9 @@
+added:
+  - Added a testing library, so that we can run more
+    benchmarks easily.
+  - Uploaded generated JSON files as an archive on GHA
+    so that we can perform an analysis on it later.
+
+fixed:
+  - Fixed the test runner so that it partitions work
+    across threads correctly even when there's a test failure.
