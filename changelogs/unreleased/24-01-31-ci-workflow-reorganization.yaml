@@ -1,0 +1,7 @@
+changed:
+  - Made it so that pushing to branches that start with `experiment-` will not run the changelog-validator.
+    We will use these branches for running experiments, so we don't want to write changelogs.
+    However, the changelog-validator will error because of the absence of changelogs, which is annoying.
+    This change suppresses the error.
+  - Separated the main workflow into two workflows. One for running tests and one for creating a Docker image
+    on push to the main branch.
