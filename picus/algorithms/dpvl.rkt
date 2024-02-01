@@ -212,13 +212,15 @@
 ;   - ('unsafe ks us info)
 ;   - ('unknown ks us info)
 (define (dpvl-iterate ks us)
-
   ; first, propagate
   (define-values (new-ks new-us) (if :arg-prop
                                      ; do propagation
                                      (dpvl-propagate ks us)
                                      ; don't do propagation
                                      (values ks us)))
+  (picus:log-accounting #:type "known_size_imm"
+                        #:value (set-count new-ks)
+                        #:msg "Number of inferred known signals (so far)")
   (cond
     [(set-empty? (set-intersect :target-set new-us))
      ; no target signal is unknown, no need to solve any more, return
