@@ -179,10 +179,6 @@
 
   ; apply lemma 0: linear lemma
   (set!-values (:linear-clauses tmp-ks tmp-us) (l0:apply-lemma :linear-clauses tmp-ks tmp-us))
-
-  ; apply lemma 1: binary01 lemma
-  (set!-values (tmp-ks tmp-us) (l1:apply-lemma tmp-ks tmp-us :p1cnsts :range-vec))
-
   ; apply lemma 2: basis2 lemma
   (set!-values (tmp-ks tmp-us) (l2:apply-lemma tmp-ks tmp-us :p1cnsts :range-vec))
 
@@ -458,6 +454,10 @@
   (set! :range-vec (build-vector :nwires (lambda (x) 'bottom)))
   ; x0 is always 1
   (vector-set! :range-vec 0 (list->set (list 1)))
+
+  ;; infer range
+  (set!-values (known-set unknown-set)
+               (l1:apply-lemma known-set unknown-set :p1cnsts :range-vec))
 
   ; invoke the algorithm iteration
   (define-values (ret0 rks rus info) (dpvl-iterate known-set unknown-set))

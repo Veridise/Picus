@@ -1,0 +1,5 @@
+changed:
+  - Hoisted the range inference, since the propagation loop
+    and SMT query does not give us any extra information about
+    the range of variables. It therefore suffices to run the
+    range inference only once outside the loop.
