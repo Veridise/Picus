@@ -452,24 +452,18 @@
 ; find section start pos and size of designated section type
 ; arg-raw: bytes of sections without meta zone
 (define (find-section arg-raw arg-type)
+  (define blen (bytes-length arg-raw))
+  (let loop ([pos 0])
     (cond
-        [(zero? (bytes-length arg-raw))
-         (picus:tool-error "[find-section-pos] cannot find position of section given type: ~a" arg-type)
-        ]
-        [else
-            (define section0-type (utils:bytes->number (subbytes arg-raw 0 4)))
-            (define section0-size (utils:bytes->number (subbytes arg-raw 4 12)))
-            (cond
-                [(equal? arg-type section0-type) (values 0 section0-size)] ; found
-                [else
-                    (define offset (+ 12 section0-size))
-                    (define-values (pos0 size0) (find-section (subbytes arg-raw offset) arg-type))
-                    (values (+ offset pos0) size0)
-                ]
-            )
-        ]
-    )
-)
+      [(>= pos blen)
+       (picus:tool-error "[find-section-pos] cannot find position of section given type: ~a."
+                         arg-type)]
+      [else
+       (define section0-type (utils:bytes->number (subbytes arg-raw pos (+ pos 4))))
+       (define section0-size (utils:bytes->number (subbytes arg-raw (+ pos 4) (+ pos 12))))
+       (cond
+         [(equal? arg-type section0-type) (values pos section0-size)] ; found
+         [else (loop (+ pos 12 section0-size))])])))
 
 ; format spec: https://github.com/iden3/r1csfile/blob/master/doc/r1cs_bin_format.md
 (define (read-r1cs arg-path)
