@@ -1,0 +1,3 @@
+changed:
+  - Changed the R1CS reader to avoid copying the entire byte array
+    over and over again.
