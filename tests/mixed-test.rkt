@@ -18,4 +18,6 @@
   (check-result (make-run-config "zk-SQL-4c3626d/delete.circom") 'timeout)
   (check-result (make-run-config "zk-SQL-4c3626d/insert.circom") 'safe)
   (check-result (make-run-config "zk-SQL-4c3626d/select.circom") 'safe)
-  (check-result (make-run-config "zk-SQL-4c3626d/update.circom") 'timeout))
+  (check-result (make-run-config "zk-SQL-4c3626d/update.circom") 'timeout)
+
+  (check-result (make-run-config "civer-comparison/ConstrainedDecoder.circom") 'safe))
