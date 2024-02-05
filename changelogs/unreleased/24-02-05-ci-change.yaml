@@ -1,0 +1,4 @@
+fixed:
+  - Fixed the json file not generated when there's a test failure
+  - Fixed potential name crash when running the same benchmark
+    with different solvers.

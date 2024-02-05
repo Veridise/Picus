@@ -11,21 +11,24 @@
 
 (provide make-run-config
          check-result
-         env-cvc5-int
-         env-cvc5-bitsum)
+
+         current-solver
+
+         solver:cvc5-int
+         solver:cvc5-bitsum
+         solver:cvc5
+         solver:z3)
 
 (define-runtime-path picus "../picus.rkt")
 (define-runtime-path benchmark-dir "../benchmarks/")
 (define-runtime-path solver-dir "../solvers/")
 
-(define env-cvc5-int (environment-variables-copy (current-environment-variables)))
-(define env-cvc5-bitsum (environment-variables-copy (current-environment-variables)))
-(let ()
-  (parameterize ([current-environment-variables env-cvc5-int])
-    (putenv "SOLVER_PATH" (~a (build-path solver-dir "cvc5-int"))))
-  (parameterize ([current-environment-variables env-cvc5-bitsum])
-    (putenv "SOLVER_PATH" (~a (build-path solver-dir "cvc5-bitsum"))))
-  (void))
+(define solver:cvc5-int "cvc5-int")
+(define solver:cvc5-bitsum "cvc5-bitsum")
+(define solver:cvc5 "cvc5")
+(define solver:z3 "z3")
+
+(define current-solver (make-parameter solver:cvc5))
 
 (struct run-config (filename timeout) #:transparent)
 
@@ -52,7 +55,7 @@
 
 (define-check (check:core run-conf expected)
   (match-define (run-config filename timeout) run-conf)
-  (printf "=== checking ~a ===\n" filename)
+  (printf "=== checking ~a (solver: ~a) ===\n" filename (current-solver))
   (printf "##[group]~a\n" filename)
   (flush)
   (define-values (in out) (make-pipe))
@@ -68,11 +71,13 @@
   (define bench-path (~a (build-path benchmark-dir filename)))
 
   (parameterize ([current-namespace (make-base-namespace)]
+                 [current-environment-variables (environment-variables-copy (current-environment-variables))]
                  [current-command-line-arguments
                   (vector "--log-level" "ACCOUNTING"
-                          "--json" (~a bench-path ".json")
+                          "--json" (~a bench-path "-" (current-solver) ".json")
                           bench-path)]
                  [current-output-port out])
+    (putenv "SOLVER_PATH" (~a (build-path solver-dir (current-solver))))
     (define (run-picus-thunk)
       (set! ret-code
             (with-handlers ([exit-code? exit-code-code])
@@ -85,7 +90,7 @@
                 (set! timing-info (list cpu real gc)))))
     (match (sync/timeout/enable-break timeout main-thd)
       [#f
-       ;; this means we timeouted
+       ;; this means we timed out
        (break-thread main-thd)
        (set! timing-info #f)]
       [_
