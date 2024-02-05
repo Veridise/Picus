@@ -1,0 +1,8 @@
+fixed:
+  - Fixed the performance issue in linear lemma. Previously, we search over all clauses to
+    remove known variables from the list, discover more known variables, and repeat this process
+    until the fixpoint. The search over all clauses repeatedly could be very expensive,
+    especially when there are only a few clauses to consider. This commit fixes the problem
+    by building an inverse mapping from variable to it associated clauses directly,
+    so there is no need to search over all clauses anymore. This speeds up
+    the hydra benchmark from 200s to 4s.
