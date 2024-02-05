@@ -55,44 +55,38 @@
 ; recursively apply linear lemma
 (define (apply-lemma linear-clauses ks us)
   (picus:log-progress "[linear lemma] starting propagation")
-  ;; add a dummy element -1 so that working-set is not initially empty
-  ;; (since being empty is the condition for termination)
-  (let loop ([linear-clauses linear-clauses]
-             [inferred (set)]
-             [working-set (set-add ks -1)])
+
+  (define loc (make-hasheq))
+
+  (define init-ks
+    (for/set ([pair (in-list linear-clauses)]
+              #:do [(match-define (list i deducible-vars nonlinear-vars) pair)
+                    (for ([v (in-mutable-set deducible-vars)])
+                      (hash-update! loc v (λ (old) (cons pair old)) '()))
+                    (for ([v (in-mutable-set nonlinear-vars)])
+                      (hash-update! loc v (λ (old) (cons pair old)) '()))]
+              #:when (= 1 (set-count deducible-vars))
+              #:when (set-empty? nonlinear-vars))
+      (define deduced (set-first deducible-vars))
+      (picus:log-debug "[linear lemma] initially deduced ~a from clause ~a" deduced i)
+      deduced))
+
+  ;; ks initially has 0 in it, so working-set is initially always non-empty
+  (let loop ([inferred init-ks]
+             [working-set (set-union ks init-ks)])
     (cond
       [(set-empty? working-set)
        (values linear-clauses (set-union ks inferred) (set-subtract us inferred))]
       [else
-       ;; remove all known variables from linear-clauses
-       (for ([pair (in-list linear-clauses)])
-         (match-define (list i deducible-vars nonlinear-vars) pair)
-         ;; make a copy via set->list so that we can remove items froim the set
-         ;; while iterating on it.
-         (for ([v (in-list (set->list deducible-vars))]
-               #:when (set-member? working-set v))
-           (set-remove! deducible-vars v))
-
-         (for ([v (in-list (set->list nonlinear-vars))]
-               #:when (set-member? working-set v))
-           (set-remove! nonlinear-vars v)))
-
-       ;; filter out useless clauses
-       (define new-linear-clauses
-         (for/list ([pair (in-list linear-clauses)]
-                   #:do [(match-define (list _ deducible-vars _) pair)]
-                   #:unless (set-empty? deducible-vars))
-           pair))
-
-       ;; NOTE: possible optimization: remove these entries right away,
-       ;; since the next iteration would remove them anyway.
        (define Δinferred
-         (for/set ([pair (in-list new-linear-clauses)]
-                   #:do [(match-define (list i deducible-vars nonlinear-vars) pair)]
-                   #:when (= 1 (set-count deducible-vars))
-                   #:when (set-empty? nonlinear-vars))
-           (define v (set-first deducible-vars))
-           (picus:log-debug "[linear lemma] deduced ~a from clause ~a" v i)
-           v))
-
-       (loop new-linear-clauses (set-union inferred Δinferred) Δinferred)])))
+         (for*/set ([v (in-set working-set)]
+                    [pair (in-list (hash-ref loc v '()))]
+                    #:do [(match-define (list i deducible-vars nonlinear-vars) pair)
+                          (set-remove! deducible-vars v)
+                          (set-remove! nonlinear-vars v)]
+                    #:when (= 1 (set-count deducible-vars))
+                    #:when (set-empty? nonlinear-vars))
+           (define deduced (set-first deducible-vars))
+           (picus:log-debug "[linear lemma] deduced ~a from clause ~a" deduced i)
+           deduced))
+       (loop (set-union inferred Δinferred) Δinferred)])))
