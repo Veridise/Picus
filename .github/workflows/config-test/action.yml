@@ -1,0 +1,28 @@
+name: Config test
+description: Configuration test
+inputs:
+  param:
+    description: Parameter for the run
+    required: true
+  exit:
+    description: Expected exit code (either 8 for safe or 9 for unsafe)
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: run picus with param ${{ inputs.param }}
+      run: |
+        set +e
+        racket ./picus.rkt ${{ inputs.param }} | tee result.out
+        code=$?
+        if [ $code -ne ${{ inputs.exit  }} ]; then
+          echo "original exit code: $code"
+          exit 1
+        fi
+      shell: bash # this ensures that pipefail is set
+    - name: test expected result
+      run: |
+        grep "^${{ inputs.exit == '9' && 'The circuit is underconstrained' ||
+                   (inputs.exit == '8' && 'The circuit is properly constrained' ||
+                    'This should fail') }}$" ./result.out
+      shell: bash

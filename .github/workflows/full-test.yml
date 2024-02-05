@@ -3,15 +3,7 @@ name: Full test
 on: [push, workflow_dispatch]
 
 jobs:
-  configuration-test-unsafe:
-    strategy:
-      matrix:
-        param:
-          - --solver cvc5                ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.r1cs
-          - --solver z3                  ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.r1cs
-          - --solver cvc5 --opt-level 0  ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.circom
-          - --solver cvc5 --opt-level 2  ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.circom
-          - ./tests/sr1cs/unsafe.sr1cs
+  configuration-test:
     runs-on: ubuntu-latest
     container:
       image: veridise/picus:git-latest
@@ -23,78 +15,81 @@ jobs:
         run: ln -s /root/.cargo/bin/circom /usr/bin/circom
       - name: compile circomlib
         run: bash ./scripts/prepare-circomlib.sh
-      - name: run picus with param ${{ matrix.param }}
-        run: |
-          set +e
-          racket ./picus.rkt ${{ matrix.param }} | tee result.out
-          code=$?
-          if [ $code -ne 9 ]; then
-            echo "original exit code: $code"
-            exit 1
-          fi
-        shell: bash # this ensures that pipefail is set
-      - name: test expected result
-        run: |
-          grep "^The circuit is underconstrained$" ./result.out
 
-  configuration-test-safe:
-    strategy:
-      matrix:
-        param:
-          - --solver cvc5                ./benchmarks/circomlib-cff5ab6/AND@gates.r1cs
-          - --solver z3                  ./benchmarks/circomlib-cff5ab6/AND@gates.r1cs
-          - --solver cvc5 --opt-level 0  ./benchmarks/circomlib-cff5ab6/AND@gates.circom
-          - --solver cvc5 --opt-level 2  ./benchmarks/circomlib-cff5ab6/AND@gates.circom
-          - ./tests/sr1cs/safe.sr1cs
-    runs-on: ubuntu-latest
-    container:
-      image: veridise/picus:git-latest
-    env:
-      PLTADDONDIR: /root/.local/share/racket/
-    steps:
-      - uses: actions/checkout@v1
-      - name: linking circom
-        run: ln -s /root/.cargo/bin/circom /usr/bin/circom
-      - name: compile circomlib
-        run: bash ./scripts/prepare-circomlib.sh
-      - name: run picus with param ${{ matrix.param }}
-        run: |
-          set +e
-          racket ./picus.rkt ${{ matrix.param }} | tee result.out
-          code=$?
-          if [ $code -ne 8 ]; then
-            echo "original exit code: $code"
-            exit 1
-          fi
-        shell: bash # this ensures that pipefail is set
-      - name: test expected result
-        run: |
-          grep "^The circuit is properly constrained$" ./result.out
+      - name: unsafe test cvc5 solver
+        uses: ./.github/workflows/config-test
+        with:
+          param: --solver cvc5 ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.circom
+          exit: 9
+      - name: unsafe test z3 solver
+        uses: ./.github/workflows/config-test
+        with:
+          param: --solver z3 ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.circom
+          exit: 9
+      - name: unsafe test circom format with opt-level 2
+        uses: ./.github/workflows/config-test
+        with:
+          param: --opt-level 2 ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.circom
+          exit: 9
+      - name: unsafe test r1cs format
+        uses: ./.github/workflows/config-test
+        with:
+          param: ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.r1cs
+          exit: 9
+      - name: unsafe test sr1cs format
+        uses: ./.github/workflows/config-test
+        with:
+          param: ./tests/sr1cs/unsafe.sr1cs
+          exit: 9
 
-  wtns-test:
-    runs-on: ubuntu-latest
-    container:
-      image: veridise/picus:git-latest
-    env:
-      PLTADDONDIR: /root/.local/share/racket/
-    steps:
-      - uses: actions/checkout@v1
-      - name: linking circom
-        run: ln -s /root/.cargo/bin/circom /usr/bin/circom
-      - name: run picus
-        run: |
-          set +e
-          racket ./picus.rkt --wtns . ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.circom
-          code=$?
-          if [ $code -ne 9 ]; then
-            echo "original exit code: $code"
-            exit 1
-          fi
-        shell: bash # this ensures that pipefail is set
-      - name: test expected result
+      - name: safe test cvc5 solver
+        uses: ./.github/workflows/config-test
+        with:
+          param: --solver cvc5 ./benchmarks/circomlib-cff5ab6/AND@gates.circom
+          exit: 8
+      - name: safe test z3 solver
+        uses: ./.github/workflows/config-test
+        with:
+          param: --solver z3 ./benchmarks/circomlib-cff5ab6/AND@gates.circom
+          exit: 8
+      - name: safe test circom format with opt-level 2
+        uses: ./.github/workflows/config-test
+        with:
+          param: --opt-level 2 ./benchmarks/circomlib-cff5ab6/AND@gates.circom
+          exit: 8
+      - name: safe test r1cs format
+        uses: ./.github/workflows/config-test
+        with:
+          param: ./benchmarks/circomlib-cff5ab6/AND@gates.r1cs
+          exit: 8
+      - name: safe test sr1cs format
+        uses: ./.github/workflows/config-test
+        with:
+          param: ./tests/sr1cs/safe.sr1cs
+          exit: 8
+
+      - name: generate witness files
+        uses: ./.github/workflows/config-test
+        with:
+          param: --wtns . ./benchmarks/circomlib-cff5ab6/Decoder@multiplexer.circom
+          exit: 9
+      - name: test witness files
         run: |
           diff first-witness.wtns tests/data/first-witness.wtns.expect
           diff second-witness.wtns tests/data/second-witness.wtns.expect
+
+  misc-test:
+    runs-on: ubuntu-latest
+    container:
+      image: veridise/picus:git-latest
+    env:
+      PLTADDONDIR: /root/.local/share/racket/
+    steps:
+      - uses: actions/checkout@v1
+      - name: run tests
+        run: |
+          raco test ./tests/performance-test.rkt
+          raco test ./tests/framework-test.rkt
 
   # run the full test with cvc5
   circomlib-test:
@@ -119,15 +114,3 @@ jobs:
           path: benchmarks/**/*.json
           retention-days: 14
 
-  misc-test:
-    runs-on: ubuntu-latest
-    container:
-      image: veridise/picus:git-latest
-    env:
-      PLTADDONDIR: /root/.local/share/racket/
-    steps:
-      - uses: actions/checkout@v1
-      - name: run tests
-        run: |
-          raco test ./tests/performance-test.rkt
-          raco test ./tests/framework-test.rkt
