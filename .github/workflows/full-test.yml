@@ -97,8 +97,8 @@ jobs:
       matrix:
         include:
           - name: circomlib
-            num-runs: 4
-            jobs: '[0, 1, 2, 3]'
+            num-runs: 3
+            jobs: '[0, 1, 2]'
             path: ./tests/circomlib-test.rkt
           - name: mixed
             num-runs: 1
