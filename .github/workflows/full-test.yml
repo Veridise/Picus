@@ -113,8 +113,9 @@ jobs:
       - name: run picus with cvc5
         run: raco test ++args "--parallel ${{ matrix.id }} 4" ./tests/circomlib-test.rkt
       - uses: actions/upload-artifact@v3
+        if: ${{ always() }}
         with:
-          name: test-circomlib-${{ github.sha }}
+          name: circomlib-${{ github.sha }}
           path: benchmarks/**/*.json
           retention-days: 14
 
