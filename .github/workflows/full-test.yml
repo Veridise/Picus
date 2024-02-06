@@ -91,26 +91,22 @@ jobs:
           raco test ./tests/performance-test.rkt
           raco test ./tests/framework-test.rkt
 
-  # run the full test with cvc5
-  circomlib-test:
+  main-test:
     strategy:
+      fail-fast: false
       matrix:
-        id: [0, 1, 2, 3]
-    runs-on: ubuntu-latest
-    container:
-      image: veridise/picus:git-latest
-    env:
-      PLTADDONDIR: /root/.local/share/racket/
-    steps:
-      - uses: actions/checkout@v1
-      - name: linking circom
-        run: ln -s /root/.cargo/bin/circom /usr/bin/circom
-      - name: run picus with cvc5
-        run: raco test ++args "--parallel ${{ matrix.id }} 4" ./tests/circomlib-test.rkt
-      - uses: actions/upload-artifact@v3
-        if: ${{ always() }}
-        with:
-          name: circomlib-${{ github.sha }}
-          path: benchmarks/**/*.json
-          retention-days: 14
-
+        include:
+          - name: circomlib
+            num-runs: 4
+            jobs: '[0, 1, 2, 3]'
+            path: ./tests/circomlib-test.rkt
+          - name: mixed
+            num-runs: 1
+            jobs: '[0]'
+            path: ./tests/mixed-test.rkt
+    uses: ./.github/workflows/main-test.yml
+    with:
+      name: ${{ matrix.name }}
+      num-runs: ${{ matrix.num-runs }}
+      jobs: ${{ matrix.jobs }}
+      path: ${{ matrix.path }}

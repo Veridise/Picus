@@ -1,0 +1,3 @@
+changed:
+  - Changed GitHub Actions' workflow to invoke reusable workflow
+    for extensibility for further benchmarking.

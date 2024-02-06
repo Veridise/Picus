@@ -1,0 +1,42 @@
+on:
+  workflow_call:
+    inputs:
+      name:
+        description: Name
+        required: true
+        type: string
+      num-runs:
+        description: Max number of runners
+        required: true
+        type: string
+      jobs:
+        description: Job array
+        required: true
+        type: string
+      path:
+        description: Path to file
+        required: true
+        type: string
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        id: ${{ fromJSON(inputs.jobs) }}
+    runs-on: ubuntu-latest
+    container:
+      image: veridise/picus:git-latest
+    env:
+      PLTADDONDIR: /root/.local/share/racket/
+    steps:
+      - uses: actions/checkout@v1
+      - name: linking circom
+        run: ln -s /root/.cargo/bin/circom /usr/bin/circom
+      - name: run picus with cvc5
+        run: raco test ++args "--parallel ${{ matrix.id }} ${{ inputs.num-runs }}" ${{ inputs.path }}
+      - uses: actions/upload-artifact@v3
+        if: ${{ always() }}
+        with:
+          name: ${{ inputs.name }}-${{ github.sha }}
+          path: benchmarks/**/*.json
+          retention-days: 14
