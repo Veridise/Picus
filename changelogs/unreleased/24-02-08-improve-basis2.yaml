@@ -1,0 +1,7 @@
+fixed:
+  - Fixed deficiency in the basis2 lemma.
+    The list-no-order match pattern is extremely expensive, as it involves
+    a lot of backtracking. The fix switches to a partitioning based algorithm
+    which eliminates backtracking. This makes
+    hermez-network-9a696e3-fixed/test-hash-inputs.circom finishes the
+    propagation stage, while it previously got stuck at propagation.
