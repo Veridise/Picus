@@ -11,7 +11,8 @@
          (prefix-in l4: "./lemmas/bim-lemma.rkt")
          ; (prefix-in ln0: "./lemmas/baby-lemma.rkt")
          "../logging.rkt"
-         "../exit.rkt")
+         "../exit.rkt"
+         "../concretize.rkt")
 (provide apply-algorithm
          current-selector
          current-solver)
@@ -33,12 +34,6 @@
 (define :defs null)
 (define :cnsts null) ; standard form
 (define :p1cnsts null) ; normalized form optimized by phase 1 optimization
-
-(define :alt-varlist null)
-(define :alt-varvec null)
-(define :alt-defs null)
-(define :alt-cnsts null)
-(define :alt-p1cnsts null)
 
 (define :arg-prop null)
 (define :arg-slv null)
@@ -69,13 +64,13 @@
 ;   - (values 'sat info): the given query has a counter-example (not verified)
 ;   - (values 'skip info): the given query times out (small step)
 (define (dpvl-solve ks us sid)
-  (picus:log-progress "[solver] checking (~a, ~a)" (vector-ref :varvec sid) (vector-ref :alt-varvec sid))
+  (picus:log-progress "[solver] checking ~a" (vector-ref :varvec sid))
   ; assemble commands
   (define known-cmds
     (r1cs:rcmds
      (for/list ([j ks])
-       (r1cs:rassert (r1cs:req (r1cs:rvar (vector-ref :varvec j))
-                               (r1cs:rvar (vector-ref :alt-varvec j)))))))
+       (define var (r1cs:rvar (vector-ref :varvec j)))
+       (r1cs:rassert (r1cs:req (concretize var "x") (concretize var "y"))))))
   (define final-cmds
     (r1cs:rcmds-append
      :partial-cmds
@@ -88,15 +83,16 @@
                   (r1cs:rcmt "=============================")
                   (r1cs:rcmt "======== query block ========")
                   (r1cs:rcmt "=============================")))
-     (if :skip-query?
-         ; skip query
-         (r1cs:rcmds (list
-                      (r1cs:rcmt "signal query is skipped")
-                      (r1cs:rsolve)))
-         ; do not skip query
-         (r1cs:rcmds (list
-                      (r1cs:rassert (r1cs:rneq (r1cs:rvar (vector-ref :varvec sid)) (r1cs:rvar (vector-ref :alt-varvec sid))))
-                      (r1cs:rsolve))))))
+     (cond
+       [:skip-query?
+        (r1cs:rcmds (list
+                     (r1cs:rcmt "signal query is skipped")
+                     (r1cs:rsolve)))]
+       [else
+        (define var (r1cs:rvar (vector-ref :varvec sid)))
+        (r1cs:rcmds (list
+                     (r1cs:rassert (r1cs:rneq (concretize var "x") (concretize var "y")))
+                     (r1cs:rsolve)))])))
   ; perform optimization
   (define final-str (send (current-solver) encode-smt (r1cs:rcmds-append (r1cs:rcmds :opts) final-cmds)))
   (define res (send (current-solver) solve final-str :arg-timeout))
@@ -196,9 +192,7 @@
       ; no updates, return
       (values tmp-ks tmp-us)
       ; has updates, call again
-      (dpvl-propagate tmp-ks tmp-us)
-      )
-  )
+      (dpvl-propagate tmp-ks tmp-us)))
 
 ; perform one iteration of pp algorithm
 ;   - ks: known set
@@ -324,7 +318,6 @@
          r0
          input-set output-set target-set
          varlist opts defs cnsts
-         alt-varlist alt-defs alt-cnsts
          unique-set precondition
          arg-prop arg-slv arg-timeout
          ; extra constraints, usually from cex module about partial model
@@ -348,11 +341,6 @@
   (set! :opts opts)
   (set! :defs defs)
   (set! :cnsts cnsts)
-
-  (set! :alt-varlist alt-varlist)
-  (set! :alt-varvec (list->vector alt-varlist))
-  (set! :alt-defs alt-defs)
-  (set! :alt-cnsts alt-cnsts)
 
   (set! :arg-prop arg-prop)
   (set! :arg-slv arg-slv)
@@ -393,45 +381,41 @@
 
   ; generate linear-clauses requires no optimization to exclude ror and rand
   ; linear-clauses requires normalized constraints to get best results
-  (set! :linear-clauses (l0:compute-linear-clauses :sdmcnsts #t))
+  (set! :linear-clauses (l0:compute-linear-clauses :sdmcnsts))
   (set! :weight-map (l0:compute-weight-map :linear-clauses))
 
   ; ==== first apply optimization phase 0 ====
   (define :p0cnsts (send (current-solver) optimize-r1cs-p0 :cnsts))
-  (define :alt-p0cnsts (send (current-solver) optimize-r1cs-p0 :alt-cnsts))
 
   ; ==== then expand the constraints ====
   (define :expcnsts (send (current-solver) expand-r1cs :p0cnsts))
-  (define :alt-expcnsts (send (current-solver) expand-r1cs :alt-p0cnsts))
 
   ; ==== then normalize the constraints ====
   (define :nrmcnsts (send (current-solver) normalize-r1cs :expcnsts))
-  (define :alt-nrmcnsts (send (current-solver) normalize-r1cs :alt-expcnsts))
 
   ; ==== then apply optimization phase 1 ====
   (set! :p1cnsts (send (current-solver) optimize-r1cs-p1 :nrmcnsts))
-  (set! :alt-p1cnsts (send (current-solver) optimize-r1cs-p1 :alt-nrmcnsts))
 
   ; prepare partial cmds for better reuse through out the algorithm
   (set! :partial-cmds
         (r1cs:rcmds-append
+         (send (current-solver) get-pdefs)
          (r1cs:rcmds (list
                       (r1cs:rcmt "================================")
                       (r1cs:rcmt "======== original block ========")
                       (r1cs:rcmt "================================")))
-         :defs
-         (send (current-solver) get-pdefs)
+         (concretize :defs "x")
          (r1cs:rcmds (list (r1cs:rcmt "======== main constraints ========")))
-         :p1cnsts
-         (r1cs:rcmds (list (r1cs:rassert (r1cs:req (r1cs:rint 1) (r1cs:rvar (format "x0"))))))
+         (concretize :p1cnsts "x")
+         (r1cs:rcmds (list (r1cs:rassert (r1cs:req (r1cs:rint 1) (r1cs:rvar "x0")))))
          (r1cs:rcmds (list
                       (r1cs:rcmt "===================================")
                       (r1cs:rcmt "======== alternative block ========")
                       (r1cs:rcmt "===================================")))
-         :alt-defs
+         (concretize :defs "y")
          (r1cs:rcmds (list (r1cs:rcmt "======== main constraints ========")))
-         :alt-p1cnsts
-         (r1cs:rcmds (list (r1cs:rassert (r1cs:req (r1cs:rint 1) (r1cs:rvar (format "y0"))))))
+         (concretize :p1cnsts "y")
+         (r1cs:rcmds (list (r1cs:rassert (r1cs:req (r1cs:rint 1) (r1cs:rvar "y0")))))
          (r1cs:rcmds (list
                       (r1cs:rcmt "====================================")
                       (r1cs:rcmt "======== precondition block ========")
@@ -440,10 +424,11 @@
              ; no precondition
              (r1cs:rcmds (list (r1cs:rcmt "(no precondition or skipped by user)")))
              ; assemble precondition
-             (r1cs:rcmds (flatten (for/list ([v :precondition])
-                                    (cons
+             (r1cs:rcmds (append* (for/list ([v (in-list :precondition)])
+                                    (list
                                      (r1cs:rcmt (format "precondition tag: ~a" (car v)))
-                                     (cdr v))))))
+                                     (concretize (cdr v) "x")
+                                     (concretize (cdr v) "y"))))))
          (r1cs:rcmds (list
                       (r1cs:rcmt "========================================")
                       (r1cs:rcmt "======== extra constraint block ========")

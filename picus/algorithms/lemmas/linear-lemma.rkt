@@ -28,11 +28,11 @@
 ;   - only non-non-linear (YES, no typo here) variable can be determined (put to key)
 ;     because for x*y=k, x can't be guaranteed to be unique,
 ;     even if knowing y and k (due to field mul)
-(define (compute-linear-clauses arg-cnsts [arg-indexonly #f])
+(define (compute-linear-clauses arg-cnsts)
   (for/list ([p (r1cs:rcmds-vs arg-cnsts)]
              [i (in-naturals)]
-             #:do [(define all-vars (r1cs:get-assert-variables p arg-indexonly))
-                   (define nonlinear-vars (r1cs:get-assert-variables/nonlinear p arg-indexonly))
+             #:do [(define all-vars (r1cs:get-assert-variables p))
+                   (define nonlinear-vars (r1cs:get-assert-variables/nonlinear p))
                    ; (note) you can't use linears directly, because one var could be both linear and non-linear
                    ;        in this case, it's still non-linear in the current constraint
                    (define deducible-vars (set-subtract all-vars nonlinear-vars))

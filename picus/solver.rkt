@@ -46,8 +46,8 @@
     (define/public (get-options)
       (list (r1cs:rlogic "QF_NIA")))
 
-    (define/public (parse-r1cs arg-r1cs prefix)
-      (z3-parser:parse-r1cs arg-r1cs prefix))
+    (define/public (parse-r1cs arg-r1cs)
+      (z3-parser:parse-r1cs arg-r1cs))
 
     (define/public (expand-r1cs arg-r1cs)
       (z3-parser:expand-r1cs arg-r1cs))
@@ -133,8 +133,8 @@
        (r1cs:rraw "(set-info :category \"crafted\")")
        (r1cs:rraw (format "(define-sort F () (_ FiniteField ~a))" config:p))))
 
-    (define/public (parse-r1cs arg-r1cs prefix)
-      (cvc5-parser:parse-r1cs arg-r1cs prefix))
+    (define/public (parse-r1cs arg-r1cs)
+      (cvc5-parser:parse-r1cs arg-r1cs))
 
     (define/public (expand-r1cs arg-r1cs)
       (cvc5-parser:expand-r1cs arg-r1cs))

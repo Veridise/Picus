@@ -30,15 +30,13 @@
     (values tmp-ks tmp-us)
 )
 
-(define (extract-signal-id x) (string->number (substring x 1)))
-
 ; bag of signals: (x1 x2 x3 x4 x5 x6 x7 x8 x9 x10)
 (define (process ks us arg-r1cs)
     (define tmp-ks (list->set (set->list ks)))
     (define tmp-us (list->set (set->list us)))
     (for ([obj (r1cs:rcmds-vs arg-r1cs)])
         (define mvec (build-vector 11 (lambda (n) null)))
-        (vector-set! mvec 0 "x0")
+        (vector-set! mvec 0 0)
         (if (match-x2 obj mvec)
             ; successful, continue to match x1
             (for ([obj2 (r1cs:rcmds-vs arg-r1cs)])
@@ -49,20 +47,20 @@
                             ; successful, check for uniqueness status of x7, x8 and x9
                             (begin
                                 (if (and
-                                        (set-member? tmp-ks (extract-signal-id (vector-ref mvec 7)))
-                                        (set-member? tmp-ks (extract-signal-id (vector-ref mvec 8)))
-                                        (set-member? tmp-ks (extract-signal-id (vector-ref mvec 9)))
-                                        (set-member? tmp-ks (extract-signal-id (vector-ref mvec 10)))
+                                        (set-member? tmp-ks (vector-ref mvec 7))
+                                        (set-member? tmp-ks (vector-ref mvec 8))
+                                        (set-member? tmp-ks (vector-ref mvec 9))
+                                        (set-member? tmp-ks (vector-ref mvec 10))
                                     )
                                     ; yes, conclude and add x1 x2 to known set
                                     (begin
                                         (set! tmp-ks (set-union tmp-ks (list->set (list
-                                            (extract-signal-id (vector-ref mvec 1))
-                                            (extract-signal-id (vector-ref mvec 2))
+                                            (vector-ref mvec 1)
+                                            (vector-ref mvec 2)
                                         ))))
                                         (set! tmp-us (set-subtract tmp-us (list->set (list
-                                            (extract-signal-id (vector-ref mvec 1))
-                                            (extract-signal-id (vector-ref mvec 2))
+                                            (vector-ref mvec 1)
+                                            (vector-ref mvec 2)
                                         ))))
                                     )
                                     ; no, continue

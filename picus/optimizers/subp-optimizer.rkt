@@ -47,7 +47,6 @@
             [(= 1 v) (r1cs:rvar "one")]
             ; do nothing
             [else (r1cs:rint v)])]
-         ; (note) we assume "x0" is the first wire with prefix "x"
          [(r1cs:rvar v) (r1cs:rvar v)]
          [(r1cs:rtype v) (r1cs:rtype v)]
 

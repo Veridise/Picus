@@ -11,11 +11,11 @@
 ;   - prefix :: (or/c "x" "y")
 ; returns:
 ;   - (values varlist declarations constraints)
-(define (parse-r1cs arg-r1cs prefix)
+(define (parse-r1cs arg-r1cs)
   ; first create a list of all symbolic variables according to nwires
   (define nwires (send arg-r1cs get-num-wires))
   ; strictly align with wid
-  (define varvec (for/vector ([i (in-range nwires)]) (format "~a~a" prefix i)))
+  (define varvec (for/vector ([i (in-range nwires)]) i))
 
   ; add range constraints for declared variables
   (define raw-decls
