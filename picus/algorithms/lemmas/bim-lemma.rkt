@@ -25,8 +25,6 @@
     (values tmp-ks tmp-us)
 )
 
-(define (extract-signal-id x) (string->number (substring x 1)))
-(define (signal? x) (or (string-prefix? x "x") (string-prefix? x "y")))
 (define (extract-constant x)
     (cond
         [(equal? x "p") config:p]
@@ -89,66 +87,52 @@
 ; match 0 = a * x0 + ... + c * xn form
 ; extract list of pairs of (coefficient signal-id)
 (define (match-single arg-obj)
-    (match arg-obj
+  (match arg-obj
 
-        ; ==================================
-        ; ==== non finite field version ====
-        ; ==================================
-        [(r1cs:rassert (r1cs:req
-            (r1cs:rvar "zero")
-            (r1cs:rmod (r1cs:radd (list vs ...)) (r1cs:rvar "p"))
-        ))
-            ; top level match, go to match smaller ones
-            (define res (for/list ([v vs]) (extract-pairs v)))
-            (if (set-member? (list->set res) #f)
-                #f
-                res
-            )
-        ]
+    ; ==================================
+    ; ==== non finite field version ====
+    ; ==================================
+    [(r1cs:rassert (r1cs:req
+                    (r1cs:rvar "zero")
+                    (r1cs:rmod (r1cs:radd (list vs ...)) (r1cs:rvar "p"))))
+     ; top level match, go to match smaller ones
+     (define res (for/list ([v vs]) (extract-pairs v)))
+     (if (member #f res)
+         #f
+         res)]
 
-        ; ==================================
-        ; ==== finite field version ====
-        ; ==================================
-        [(r1cs:rassert (r1cs:req
-            (r1cs:rvar "zero")
-            (r1cs:radd (list vs ...))
-        ))
-            ; top level match, go to match smaller ones
-            (define res (for/list ([v vs]) (extract-pairs v)))
-            (if (set-member? (list->set res) #f)
-                #f
-                res
-            )
-        ]
+    ; ==================================
+    ; ==== finite field version ====
+    ; ==================================
+    [(r1cs:rassert (r1cs:req
+                    (r1cs:rvar "zero")
+                    (r1cs:radd (list vs ...))))
+     ; top level match, go to match smaller ones
+     (define res (for/list ([v vs]) (extract-pairs v)))
+     (if (member #f res)
+         #f
+         res)]
 
-        ; otherwise, do not rewrite
-        [_ #f]
-    )
-)
+    ; otherwise, do not rewrite
+    [_ #f]))
 
 ; pair is (signal-id coefficient)
 (define (extract-pairs arg-obj)
-    (match arg-obj
-        ; ==================================
-        ; ==== non finite field version ====
-        ; ==================================
-        [(r1cs:rvar x)
-            (if (signal? x)
-                ; coefficient is one
-                (cons (extract-signal-id x) 1)
-                ; not a signal, this is probably a named constant, abort
-                #f
-            )
-
-        ]
-        [(r1cs:rmul (list (r1cs:rvar c) (r1cs:rvar x)))
-            (if (and (not (signal? c)) (signal? x))
-                ; correct format
-                (cons (extract-signal-id x) (extract-constant c))
-                ; incorrect format, give up
-                #f
-            )
-        ]
-        [_ #f]
-    )
-)
+  (match arg-obj
+    ; ==================================
+    ; ==== non finite field version ====
+    ; ==================================
+    [(r1cs:rvar x)
+     (cond
+       ; coefficient is one
+       [(number? x) (cons x 1)]
+       ; not a signal, this is probably a named constant, abort
+       [else #f])]
+    [(r1cs:rmul (list (r1cs:rvar c) (r1cs:rvar x)))
+     (cond
+       ; correct format
+       [(and (number? x) (not (number? c)))
+        (cons x (extract-constant c))]
+       ; incorrect format, give up
+       [else #f])]
+    [_ #f]))

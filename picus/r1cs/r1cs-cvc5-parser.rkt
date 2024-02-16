@@ -8,14 +8,13 @@
 ; turns r1cs binary form into standard form
 ; arguments:
 ;   - arg-r1cs: r1cs binary form instance using the struct r1cs grammar
-;   - prefix :: (or/c "x" "y")
 ; returns:
 ;   - (values varlist declarations constraints)
-(define (parse-r1cs arg-r1cs prefix)
+(define (parse-r1cs arg-r1cs)
   ; first create a list of all symbolic variables according to nwires
   (define nwires (send arg-r1cs get-num-wires))
   ; strictly align with wid
-  (define varvec (for/vector ([i nwires]) (format "~a~a" prefix i)))
+  (define varvec (for/vector ([i (in-range nwires)]) i))
 
   ; add declarations for variables
   (define raw-decls

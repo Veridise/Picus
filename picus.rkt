@@ -8,8 +8,7 @@
          "picus/ansi.rkt"
          "picus/logging.rkt"
          "picus/framework.rkt"
-         "picus/exit.rkt"
-         "picus/subst.rkt")
+         "picus/exit.rkt")
 
 (define-runtime-path selector-path "picus/algorithms/selector.rkt")
 (define-runtime-path reader-path "picus/reader.rkt")
@@ -168,14 +167,10 @@
   (picus:log-debug "targets: ~e" target-set)
 
   ; parse original r1cs
-  (picus:log-progress "parsing original r1cs...")
+  (picus:log-progress "parsing r1cs...")
   ;; invariant: (length varlist) = nwires
-  (define-values (varlist defs cnsts) (send arg-solver parse-r1cs r0 "x")) ; interpret the constraint system
+  (define-values (varlist defs cnsts) (send arg-solver parse-r1cs r0)) ; interpret the constraint system
   (picus:log-debug "varlist: ~e" varlist)
-  ; parse alternative r1cs
-  (picus:log-progress "parsing alternative r1cs...")
-  (define-values (alt-varlist alt-defs alt-cnsts) (send arg-solver parse-r1cs r0 "y"))
-  (picus:log-debug "alt-varlist ~e" alt-varlist)
 
   (picus:log-progress "configuring precondition...")
   (define-values (unique-set precondition)
@@ -215,11 +210,9 @@
                      r0
                      input-set output-set target-set
                      varlist (send arg-solver get-options) defs cnsts
-                     alt-varlist alt-defs alt-cnsts
                      unique-set
                      (append precondition ; prior knowledge row
-                             (map (λ (cnst) (cons "x series" cnst)) (send r0 get-extra-constraints))
-                             (map (λ (cnst) (cons "y series" cnst)) (subst-vars* (send r0 get-extra-constraints) convert-y)))
+                             (map (λ (cnst) (cons "extra constraint" cnst)) (send r0 get-extra-constraints)))
                      arg-prop arg-slv arg-timeout))
                   '())))
 

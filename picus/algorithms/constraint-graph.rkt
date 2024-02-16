@@ -13,8 +13,6 @@
 ;   - o2s: vector, order to scope
 (struct cgraph (g e2c s2o s2s o2s) #:mutable #:transparent #:reflection-name 'cgraph) ; constraint graph
 
-(define (extract-signal-id x) (string->number (substring x 1)))
-
 ; scope is a set e.g.  (set "adder" "main")
 (define (read-sym path-sym)
     (define rd (csv->list (open-input-file path-sym)))

@@ -168,7 +168,7 @@
     (match fml
       [`(< ,a ,b) (r1cs:rlt (interp a) (interp b))]
       [`(var ,(? number? id))
-       (r1cs:rvar (format "x~a" id))]
+       (r1cs:rvar id)]
       [`(int ,x) (r1cs:rint x)]))
 
   ;; r2c-map ::  (hash/c number? symbol?)

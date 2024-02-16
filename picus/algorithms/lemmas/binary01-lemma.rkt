@@ -53,8 +53,6 @@
     )
 )
 
-(define (extract-signal-id x) (string->number (substring x 1)))
-
 ; actual matching funtion of the lemma
 ; we are looking for expanded forms of (x-0)(x-1)=0 (also: x*(x+p1)=0), which is e.g.,:
 ;   - (assert (= (rem (+ (* ps1 y639) (* y639 y639)) p) zero))  --> not captured by ab0
@@ -83,7 +81,7 @@
                 ; signal x is bounded to {0,1}, extract signal number
                 (when (equal? x0 x1)
                     ; (printf "binary01 add: ~a\n" x0)
-                    (override!-range range-vec (extract-signal-id x0) (list->set (list 0 1)))
+                    (override!-range range-vec x0 (list->set (list 0 1)))
                 )
             ]
             ; flip#1
@@ -100,7 +98,7 @@
                 ; signal x is bounded to {0,1}, extract signal number
                 (when (equal? x0 x1)
                     ; (printf "binary01 add: ~a\n" x0)
-                    (override!-range range-vec (extract-signal-id x0) (list->set (list 0 1)))
+                    (override!-range range-vec x0 (list->set (list 0 1)))
                 )
             ]
 
@@ -121,7 +119,7 @@
                 ; signal x is bounded to {0,1}, extract signal number
                 (when (equal? x0 x1)
                     ; (printf "binary01 add: ~a\n" x0)
-                    (override!-range range-vec (extract-signal-id x0) (list->set (list 0 1)))
+                    (override!-range range-vec x0 (list->set (list 0 1)))
                 )
             ]
             ; flip#1
@@ -141,7 +139,7 @@
                 ; signal x is bounded to {0,1}, extract signal number
                 (when (equal? x0 x1)
                     ; (printf "binary01 add: ~a\n" x0)
-                    (override!-range range-vec (extract-signal-id x0) (list->set (list 0 1)))
+                    (override!-range range-vec x0 (list->set (list 0 1)))
                 )
             ]
             ; flip#2
@@ -161,7 +159,7 @@
                 ; signal x is bounded to {0,1}, extract signal number
                 (when (equal? x0 x1)
                     ; (printf "binary01 add: ~a\n" x0)
-                    (override!-range range-vec (extract-signal-id x0) (list->set (list 0 1)))
+                    (override!-range range-vec x0 (list->set (list 0 1)))
                 )
             ]
             ; flip#3
@@ -181,7 +179,7 @@
                 ; signal x is bounded to {0,1}, extract signal number
                 (when (equal? x0 x1)
                     ; (printf "binary01 add: ~a\n" x0)
-                    (override!-range range-vec (extract-signal-id x0) (list->set (list 0 1)))
+                    (override!-range range-vec x0 (list->set (list 0 1)))
                 )
             ]
 
@@ -200,7 +198,7 @@
                 ; signal x is bounded to {0,1}, extract signal number
                 (when (equal? x0 x1)
                     ; (printf "binary01 add: ~a\n" x0)
-                    (override!-range range-vec (extract-signal-id x0) (list->set (list 0 1)))
+                    (override!-range range-vec x0 (list->set (list 0 1)))
                 )
             ]
             ; flip#1
@@ -214,7 +212,7 @@
                 ; signal x is bounded to {0,1}, extract signal number
                 (when (equal? x0 x1)
                     ; (printf "binary01 add: ~a\n" x0)
-                    (override!-range range-vec (extract-signal-id x0) (list->set (list 0 1)))
+                    (override!-range range-vec x0 (list->set (list 0 1)))
                 )
             ]
 
@@ -232,7 +230,7 @@
                 ; signal x is bounded to {0,1}, extract signal number
                 (when (equal? x0 x1)
                     ; (printf "binary01 add: ~a\n" x0)
-                    (override!-range range-vec (extract-signal-id x0) (list->set (list 0 1)))
+                    (override!-range range-vec x0 (list->set (list 0 1)))
                 )
             ]
             ; flip#1
@@ -249,7 +247,7 @@
                 ; signal x is bounded to {0,1}, extract signal number
                 (when (equal? x0 x1)
                     ; (printf "binary01 add: ~a\n" x0)
-                    (override!-range range-vec (extract-signal-id x0) (list->set (list 0 1)))
+                    (override!-range range-vec x0 (list->set (list 0 1)))
                 )
             ]
             ; flip#2
@@ -266,7 +264,7 @@
                 ; signal x is bounded to {0,1}, extract signal number
                 (when (equal? x0 x1)
                     ; (printf "binary01 add: ~a\n" x0)
-                    (override!-range range-vec (extract-signal-id x0) (list->set (list 0 1)))
+                    (override!-range range-vec x0 (list->set (list 0 1)))
                 )
             ]
             ; flip#3
@@ -283,7 +281,7 @@
                 ; signal x is bounded to {0,1}, extract signal number
                 (when (equal? x0 x1)
                     ; (printf "binary01 add: ~a\n" x0)
-                    (override!-range range-vec (extract-signal-id x0) (list->set (list 0 1)))
+                    (override!-range range-vec x0 (list->set (list 0 1)))
                 )
             ]
 

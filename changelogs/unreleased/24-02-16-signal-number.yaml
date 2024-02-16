@@ -1,0 +1,6 @@
+changed:
+  - Changed the variable representation. Instead of creating variables like `x1` and `y1` and use them
+    in the two "series" at the very beginning, thus necessitating that we keep constraints from
+    both "series" in sync, this commit switches the variable representation to a pure integer.
+    Then, we concretize `1` into `x1` or `y1` at the very final step before we submit it to the solver.
+    This has a slight performance benefit, but the main advantage is easier maintenance.

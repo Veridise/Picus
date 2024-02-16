@@ -24,7 +24,6 @@
 ;; to be initialized later in the function update
 (define basis2-seqs #f)
 
-(define (extract-signal-id x) (string->number (substring x 1)))
 (define (ffsub v) (- config:p v))
 
 (define (all-binary01? range-vec sids)
@@ -164,7 +163,6 @@
         [_ (picus:tool-error "unsupported coefficient, got: ~a" v)])))
   (define coeset (list->set coelist))
   (define coeset2 (list->set coelist2))
-  (define siglist (for/list ([x xs]) (extract-signal-id x)))
 
   (cond
     [(and (= (length coelist) (set-count coeset))
@@ -173,13 +171,13 @@
           (or (set-member? basis2-seqs coeset) (set-member? basis2-seqs coeset2))
           ; yes it's a basis sequence
           ; check for signal ranges
-          (all-binary01? range-vec siglist)
+          (all-binary01? range-vec xs)
           ; good, all binary01
           ; check if the target signal is already unique
-          (set-member? ks (extract-signal-id x0))
+          (set-member? ks x0)
           ; yes it's unique, then add all basis signals to known set
           )
-     (define sigset (list->set siglist))
+     (define sigset (list->set xs))
      (values (set-union ks sigset)
              (set-subtract us sigset))]
     [else (values ks us)]))

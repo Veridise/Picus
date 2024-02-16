@@ -36,8 +36,6 @@
     (values tmp-ks tmp-us)
 )
 
-(define (extract-signal-id x) (string->number (substring x 1)))
-
 (define (process ks us arg-r1cs range-vec)
   (define vs (r1cs:rcmds-vs arg-r1cs))
   (match vs
@@ -53,11 +51,7 @@
          ; matched, analyze vars
          ; list is: x, y0, y1, c
          ; if c and x are unique, then y0 and y1 are unique
-         [(list x y0 y1 c)
-          (define xid (extract-signal-id x))
-          (define cid (extract-signal-id c))
-          (define y0id (extract-signal-id y0))
-          (define y1id (extract-signal-id y1))
+         [(list xid y0id y1id cid)
           (cond
             [(and (set-member? ks xid) (set-member? ks cid))
              (values (set-union ks (set y0id y1id))

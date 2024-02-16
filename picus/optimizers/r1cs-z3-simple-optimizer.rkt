@@ -95,13 +95,10 @@
         ]
 
         [(r1cs:rint v) (r1cs:rint v)]
-        ; (note) we assume "x0" is the first wire with prefix "x"
         [(r1cs:rvar v)
-            (cond
-                [(equal? "x0" v) (r1cs:rint 1)]
-                [else (r1cs:rvar v)]
-            )
-        ]
+         (cond
+           [(equal? 0 v) (r1cs:rint 1)]
+           [else (r1cs:rvar v)])]
         [(r1cs:rtype v) (r1cs:rtype v)]
 
         [(r1cs:radd vs)

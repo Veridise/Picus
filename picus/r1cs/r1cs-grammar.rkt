@@ -24,7 +24,7 @@
 (struct rsolve () #:mutable #:transparent #:reflection-name 'r1cs:rsolve)
 ; sub-command level
 (struct rint (v) #:mutable #:transparent #:reflection-name 'r1cs:rint) ; v: int
-(struct rvar (v) #:mutable #:transparent #:reflection-name 'r1cs:rvar) ; v: str
+(struct rvar (v) #:mutable #:transparent #:reflection-name 'r1cs:rvar) ; v: (or/c int string?)
 (struct rtype (v) #:mutable #:transparent #:reflection-name 'r1cs:rtype) ; v: str
 ; sub-command level
 (struct req (lhs rhs) #:mutable #:transparent #:reflection-name 'r1cs:req)
@@ -42,7 +42,7 @@
 ; sub-command level
 (struct radd (vs) #:mutable #:transparent #:reflection-name 'r1cs:radd) ; vs: list
 (struct rmul (vs) #:mutable #:transparent #:reflection-name 'r1cs:rmul) ; vs: list
-(struct rmod (v mod) #:mutable #:transparent #:reflection-name 'r1cs:rmod) ; v: int, mod: int
+(struct rmod (v mod) #:mutable #:transparent #:reflection-name 'r1cs:rmod)
 
 (define (rcmds-ref obj ind) (list-ref (rcmds-vs obj) ind))
 
@@ -107,176 +107,78 @@
     (do (list-ref (rcmds-vs arg-rcmds) arg-id))
 )
 
+; precondition: obj must be an unoptimized r1cs
 ; return a set of all variables occuring in a (partial) r1cs ast
-;   - arg-indexonly: whether to extract the indices instead of keeping the full variable name
 ; (note) you should (had better) normalize the constraints before calling this method
 ;        to get the most precise results; e.g., 1*x would not otherwise be considered
 ;        in form of x0*x
-(define (get-assert-variables obj [arg-indexonly #f])
-    ; define internal function
-    (define (do obj0)
-        (match obj0
-            [(rcmds vs) (append* (for/list ([v vs]) (do v)))]
-            [(rraw v) (list )]
-            [(rlogic v) (list )]
-            [(rdef v t) (list )]
-            [(rassert v) (do v)]
-            [(rcmt v) (list )]
-            [(rsolve ) (list )]
-            [(req lhs rhs) (append (do lhs) (do rhs))]
-            [(rneq lhs rhs) (append (do lhs) (do rhs))]
-            [(rleq lhs rhs) (append (do lhs) (do rhs))]
-            [(rlt lhs rhs) (append (do lhs) (do rhs))]
-            [(rgeq lhs rhs) (append (do lhs) (do rhs))]
-            [(rgt lhs rhs) (append (do lhs) (do rhs))]
-            [(rand vs) (append* (for/list ([v vs]) (do v)))]
-            [(rimp lhs rhs) (append (do lhs) (do rhs))]
-            [(ror vs) (append* (for/list ([v vs]) (do v)))]
-            [(rint v) (list )]
-            [(rvar v)
-                ; (fixme) we here assume prefix is either "x" or "y"
-                (if (or (string-prefix? v "x") (string-prefix? v "y"))
-                    ; starts with x or y, good
-                    (if arg-indexonly
-                        ; extracted variable index
-                        (list (string->number (substring v 1)))
-                        ; original string variable
-                        (list v)
-                    )
-                    ; not starting with x or y, could be ps?, could be zero/one
-                    ; don't include
-                    (list )
-                )
-            ]
-            [(rtype v) (list )]
-            [(radd vs) (append* (for/list ([v vs]) (do v)))]
-            [(rmul vs) (append* (for/list ([v vs]) (do v)))]
-            [(rmod v mod) (append (do v) (do mod))]
-            [_ (picus:tool-error "not supported: ~a" obj0)]
-        )
-    )
-    ; then call it and remove duplicates, and return
-    (list->set (do obj))
-)
+(define (get-assert-variables obj)
+  (list->set
+   (let loop ([obj obj])
+     (match obj
+       [(rcmds vs) (append* (for/list ([v (in-list vs)]) (loop v)))]
+       [(rraw v) '()]
+       [(rlogic v) '()]
+       [(rdef v t) '()]
+       [(rassert v) (loop v)]
+       [(rcmt v) '()]
+       [(rsolve ) '()]
+       [(req lhs rhs) (append (loop lhs) (loop rhs))]
+       [(rneq lhs rhs) (append (loop lhs) (loop rhs))]
+       [(rleq lhs rhs) (append (loop lhs) (loop rhs))]
+       [(rlt lhs rhs) (append (loop lhs) (loop rhs))]
+       [(rgeq lhs rhs) (append (loop lhs) (loop rhs))]
+       [(rgt lhs rhs) (append (loop lhs) (loop rhs))]
+       [(rand vs) (append* (for/list ([v (in-list vs)]) (loop v)))]
+       [(rimp lhs rhs) (append (loop lhs) (loop rhs))]
+       [(ror vs) (append* (for/list ([v (in-list vs)]) (loop v)))]
+       [(rint v) '()]
+       [(rvar v) (if (string? v) '() (list v))]
+       [(rtype v) '()]
+       [(radd vs) (append* (for/list ([v (in-list vs)]) (loop v)))]
+       [(rmul vs) (append* (for/list ([v (in-list vs)]) (loop v)))]
+       [(rmod v mod) (append (loop v) (loop mod))]
+       [_ (picus:tool-error "not supported: ~a" obj)]))))
 
-; same as get-assert-variables, but limited to linear ones
-; linear meaning: variable that do not multiply with another variable (even itself)
-;                 a linear variable exists to a single constraints, not a constraint system
-;                 i.e., it could be linear in one constraint, while not in another
-; (note) you should normalize the constraints before calling this method
-;        to get the most precise results; e.g., 1*x would not otherwise be considered
-;        in form of x0*x
-; (important) one variable can simultaneously appear as linear and non-linear
-;             in the interest of uniqueness, it should be marked as non-linear
-;             but this method does not make the decision for the user
-;             you need to determine by yourself
-(define (get-assert-variables/linear obj [arg-indexonly #f])
-    ; define internal function
-    (define (do obj0)
-        (match obj0
-            [(rcmds vs) (append* (for/list ([v vs]) (do v)))]
-            [(rraw v) (list )]
-            [(rlogic v) (list )]
-            [(rdef v t) (list )]
-            [(rassert v) (do v)]
-            [(rcmt v) (list )]
-            [(rsolve ) (list )]
-            [(req lhs rhs) (append (do lhs) (do rhs))]
-            [(rneq lhs rhs) (append (do lhs) (do rhs))]
-            [(rleq lhs rhs) (append (do lhs) (do rhs))]
-            [(rlt lhs rhs) (append (do lhs) (do rhs))]
-            [(rgeq lhs rhs) (append (do lhs) (do rhs))]
-            [(rgt lhs rhs) (append (do lhs) (do rhs))]
-            [(rand vs) (picus:tool-error "get-assert-variables/linear receives rand, which is not supported")]
-            [(rimp lhs rhs) (append (do lhs) (do rhs))]
-            [(ror vs) (picus:tool-error "get-assert-variables/linear receives ror, which is not supported")]
-            [(rint v) (list )]
-            [(rvar v)
-                (if arg-indexonly
-                    ; extracted variable index
-                    ; (fixme) we here assume prefix is either "x" or "y"
-                    (list (string->number (substring v 1)))
-                    ; original string variable
-                    (list v)
-                )
-            ]
-            [(rtype v) (list )]
-            [(radd vs) (append* (for/list ([v vs]) (do v)))]
-            ; (assumed optimized version)
-            ; - 1*x will be x, which will not be captured by rmul
-            ; - (fixme) this could be wrong, a*x is treated as linear,
-            ;           since prime field has unique multiplicative inverse, so a*x=b
-            ;           will have unique solution for x
-            ; others are not linear
-            [(rmul vs)
-                (let ([vv (filter (lambda (x) (rvar? x)) vs)])
-                    (if (= 1 (length vv))
-                        ; only 1 var, good as linear
-                        (do (car vv))
-                        ; no var or more than 1 var, not good for linear
-                        (list )
-                    )
-                )
-            ]
-            [(rmod v mod) (append (do v) (do mod))]
-            [_ (picus:tool-error "not supported: ~a" obj0)]
-        )
-    )
-    ; then call it and remove duplicates, and return
-    (list->set (do obj))
-)
-
-(define (get-assert-variables/nonlinear obj [arg-indexonly #f])
-    ; define internal function
-    (define (do obj0 [include? #f])
-        (match obj0
-            [(rcmds vs) (append* (for/list ([v vs]) (do v include?)))]
-            [(rraw v) (list )]
-            [(rlogic v) (list )]
-            [(rdef v t) (list )]
-            [(rassert v) (do v include?)]
-            [(rcmt v) (list )]
-            [(rsolve ) (list )]
-            [(req lhs rhs) (append (do lhs include?) (do rhs include?))]
-            [(rneq lhs rhs) (append (do lhs include?) (do rhs include?))]
-            [(rleq lhs rhs) (append (do lhs include?) (do rhs include?))]
-            [(rlt lhs rhs) (append (do lhs include?) (do rhs include?))]
-            [(rgeq lhs rhs) (append (do lhs include?) (do rhs include?))]
-            [(rgt lhs rhs) (append (do lhs include?) (do rhs include?))]
-            [(rand vs) (picus:tool-error "get-assert-variables/nonlinear receives rand, which is not supported")]
-            [(rimp lhs rhs) (append (do lhs) (do rhs))]
-            [(ror vs) (picus:tool-error "get-assert-variables/nonlinear receives ror, which is not supported")]
-            [(rint v) (list )]
-            [(rvar v)
-                ; only include when include? is #t
-                (if include?
-                    (if arg-indexonly
-                        ; extracted variable index
-                        ; (fixme) we here assume prefix is either "x" or "y"
-                        (list (string->number (substring v 1)))
-                        ; original string variable
-                        (list v)
-                    )
-                    (list)
-                )
-            ]
-            [(rtype v) (list )]
-            [(radd vs)
-             (append* (for/list ([v vs]) (do v include?)))]
-            [(rmul vs)
-             (define vv (filter (lambda (x) (rvar? x)) vs))
-             (if (<= (length vv) 1)
-                 ; less than or equal to 1 var, this is just linear
-                 '()
-                 ; more than 1 var, all involved vars are non-linear
-                 (append* (for/list ([v vs]) (do v #t))))]
-            [(rmod v mod) (append (do v include?) (do mod include?))]
-            [_ (picus:tool-error "not supported: ~a" obj0)]
-        )
-    )
-    ; then call it and remove duplicates, and return
-    (list->set (do obj))
-)
+; precondition: obj must be an unoptimized r1cs
+(define (get-assert-variables/nonlinear obj)
+  (list->set
+   (let loop ([obj obj] [include? #f])
+     (match obj
+       [(rcmds vs) (append* (for/list ([v (in-list vs)]) (loop v include?)))]
+       [(rraw v) '()]
+       [(rlogic v) '()]
+       [(rdef v t) '()]
+       [(rassert v) (loop v include?)]
+       [(rcmt v) '()]
+       [(rsolve ) '()]
+       [(req lhs rhs) (append (loop lhs include?) (loop rhs include?))]
+       [(rneq lhs rhs) (append (loop lhs include?) (loop rhs include?))]
+       [(rleq lhs rhs) (append (loop lhs include?) (loop rhs include?))]
+       [(rlt lhs rhs) (append (loop lhs include?) (loop rhs include?))]
+       [(rgeq lhs rhs) (append (loop lhs include?) (loop rhs include?))]
+       [(rgt lhs rhs) (append (loop lhs include?) (loop rhs include?))]
+       [(rand vs) (picus:tool-error "get-assert-variables/nonlinear receives rand, which is not supported")]
+       [(rimp lhs rhs) (append (loop lhs) (loop rhs))]
+       [(ror vs) (picus:tool-error "get-assert-variables/nonlinear receives ror, which is not supported")]
+       [(rint v) '()]
+       [(rvar v)
+        ; only include when include? is #t
+        (if include?
+            (list v)
+            '())]
+       [(rtype v) '()]
+       [(radd vs)
+        (append* (for/list ([v (in-list vs)]) (loop v include?)))]
+       [(rmul vs)
+        (define vv (filter (lambda (x) (rvar? x)) vs))
+        (if (<= (length vv) 1)
+            ; less than or equal to 1 var, this is just linear
+            '()
+            ; more than 1 var, all involved vars are non-linear
+            (append* (for/list ([v (in-list vs)]) (loop v #t))))]
+       [(rmod v mod) (append (loop v include?) (loop mod include?))]
+       [_ (picus:tool-error "not supported: ~a" obj)]))))
 
 ; =======================================
 ; ======== utils for binary r1cs ========
