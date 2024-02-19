@@ -1,0 +1,3 @@
+changed:
+  - Changed the test runner to only run tests that are not expecting a timeout.
+    The full test run can still be invoked via the `--slow` flag.
