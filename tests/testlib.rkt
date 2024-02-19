@@ -35,6 +35,7 @@
 ;; invariant: *thread-id* is false iff *num-threads* is false
 (define *thread-id* #f)
 (define *num-threads* #f)
+(define *slow?* #f)
 
 (define filenames
   (command-line
@@ -43,6 +44,8 @@
                    "Run the (thread-id)th batch of num-threads workload"
                    (set! *thread-id* (string->number thread-id))
                    (set! *num-threads* (string->number num-threads))]
+   [("--slow") "Slow mode (do not skip tests that expect a timeout)"
+               (set! *slow?* #t)]
    #:args filenames
    filenames))
 
@@ -131,6 +134,7 @@
     (define current-counter *counter*)
     (set! *counter* (add1 *counter*))
     (cond
+      [(and (not *slow?*) (eq? expected 'timeout)) (printf "skipping a slow test\n")]
       [(or (not *num-threads*) (= (modulo current-counter *num-threads*) *thread-id*))
        (check:core run-conf expected)]
       [else (printf "skipping a run for other threads\n")])))
