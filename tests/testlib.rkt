@@ -136,5 +136,7 @@
     (cond
       [(and (not *slow?*) (eq? expected 'timeout)) (printf "skipping a slow test\n")]
       [(or (not *num-threads*) (= (modulo current-counter *num-threads*) *thread-id*))
-       (check:core run-conf expected)]
+       (with-check-info (['file filename]
+                         ['expected-status expected])
+         (check:core run-conf expected))]
       [else (printf "skipping a run for other threads\n")])))
