@@ -160,6 +160,10 @@
   (define extra-constraints '())
   (define prime #f)
 
+  (define max-var 0)
+  (define (register id)
+    (set! max-var (max id max-var)))
+
   (define (first+fix xs)
     (define x (first xs))
     (if (< x 0) (+ x prime) x))
@@ -168,6 +172,7 @@
     (match fml
       [`(< ,a ,b) (r1cs:rlt (interp a) (interp b))]
       [`(var ,(? number? id))
+       (register id)
        (r1cs:rvar id)]
       [`(int ,x) (r1cs:rint x)]))
 
@@ -177,22 +182,32 @@
   (for ([entry (in-list data)])
     (match entry
       [(list 'in (? number? id))
-       (set! input-list (cons id input-list))]
+       (set! input-list (cons id input-list))
+       (register id)]
       [(list 'out (? number? id))
-       (set! output-list (cons id output-list))]
+       (set! output-list (cons id output-list))
+       (register id)]
       [(list 'label (? number? id) (? symbol? label))
        (hash-set! r2c-map id label)]
       [(list 'num-wires val)
-       (set! num-wires val)]
+       ;; accept this for backward compatibility,
+       ;; but we no longer need it in a newer format
+       (void)]
       [(list 'prime-number val)
        (set! prime val)]
       [(list 'extra-constraint fml)
        (set! extra-constraints (cons (r1cs:rassert (interp fml)) extra-constraints))]
       [(list 'constraint a b c)
+       (define a-vars (map second a))
+       (define b-vars (map second b))
+       (define c-vars (map second c))
+       (for-each register a-vars)
+       (for-each register b-vars)
+       (for-each register c-vars)
        (set! constraints
-             (cons (r1cs:constraint (r1cs:constraint-block (length a) (map second a) (map first+fix a))
-                                    (r1cs:constraint-block (length b) (map second b) (map first+fix b))
-                                    (r1cs:constraint-block (length c) (map second c) (map first+fix c)))
+             (cons (r1cs:constraint (r1cs:constraint-block (length a) a-vars (map first+fix a))
+                                    (r1cs:constraint-block (length b) b-vars (map first+fix b))
+                                    (r1cs:constraint-block (length c) c-vars (map first+fix c)))
                    constraints))]))
 
   (set! constraints (reverse constraints))
@@ -215,7 +230,7 @@
            "sr1cs")
 
          (define/public (get-num-wires)
-           num-wires)
+           (add1 max-var))
 
          (define/public (get-num-constraints)
            num-constraints)

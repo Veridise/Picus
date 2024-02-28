@@ -1,0 +1,8 @@
+fixed:
+  - Updated the sr1cs format to remove the `num-wires` clause.
+    In particular, we can already infer this variable by
+    walking through the whole circuit and find the maximum wire id.
+    This particularly matters because we could have extra constraints
+    that are not registered with the Gnark engine, so the reported
+    `num-wires` could potentially be incorrect.
+    But circuit walking will take these extra constriants into account.
