@@ -2,13 +2,14 @@ package main
 
 import (
 	"github.com/Veridise/picus_gnark"
+	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/frontend"
 	"github.com/succinctlabs/gnark-plonky2-verifier/goldilocks"
 )
 
 func main() {
 	var circuit TestGoldilocksReduceCircuit
-	picus_gnark.CompilePicus("circuit", &circuit)
+	picus_gnark.CompilePicus("reduce", &circuit, ecc.BN254.ScalarField())
 }
 
 func annotateGVarIn(v goldilocks.Variable) {
