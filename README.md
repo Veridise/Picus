@@ -9,6 +9,14 @@ Picus is an implementation of the $\mathsf{QED}^2$ tool, which checks the unique
 
 If you are looking for the documentation for the artifact evaluation of $\mathsf{QED}^2$, please switch to the [artifact branch](https://github.com/chyanju/Picus/tree/pldi23-research-artifact).
 
+Picus currently supports three targets: Circom, R1CS, and gnark.
+
+| Target                                                                       | File extension | Notes                                                                             |
+|------------------------------------------------------------------------------|----------------|-----------------------------------------------------------------------------------|
+| [Circom](https://docs.circom.io/) (>= 2.0.6)                                 | `.circom`      | `circom` installation required.                                                   |
+| [R1CS](https://github.com/iden3/r1csfile/blob/master/doc/r1cs_bin_format.md) | `.r1cs`        |                                                                                   |
+| [gnark](https://docs.gnark.consensys.io/)                                    | `.sr1cs`       | `gnark` library required. See https://github.com/Veridise/picus_gnark for details |
+
 ## Getting Started Guide
 
 This section provides basic instructions on how to test out the tool for the kick-the-tires phase. We provide pre-built docker image, which is recommended.
@@ -31,26 +39,13 @@ Building from source is not recommended if you just want to quickly run and chec
 #### Dependencies
 
 - Racket (8.0+): https://racket-lang.org/
-  - Rosette (4.0+): https://github.com/emina/rosette
-    - `raco pkg install --auto rosette`
-  - csv-reading: https://www.neilvandyke.org/racket/csv-reading/
-    - `raco pkg install --auto csv-reading`
-  - graph-lib: [https://pkgs.racket-lang.org/package/graph-lib](https://pkgs.racket-lang.org/package/graph-lib)
-    - `raco pkg install --auto graph`
-  - math-lib: [https://pkgs.racket-lang.org/package/math-lib](https://pkgs.racket-lang.org/package/math-lib)
-    - `raco pkg install --auto math-lib`
-- Rust: https://www.rust-lang.org/
-  - for circom parser
-- Node.js: https://nodejs.org/en/
-  - for circom parser
-- Circom (2.0.6 Required): https://docs.circom.io/
-  - older version may touch buggy corner cases
+- Either [cvc5 with finite field theory suport](./NOTES.md#installing-cvc5-ff) or [Z3](https://github.com/Z3Prover/z3) (>= 4.10.2). 
+  The former is recommended. See [cvc5 vs Z3](#cvc5-vs-z3) for further details.
+- Circuit compiler backend, as indicated in the support table above. 
 
-- z3 solver (4.10.2+ Required): [https://github.com/Z3Prover/z3](https://github.com/Z3Prover/z3)
-  - older version may touch buggy corner cases
+#### Installation
 
-- cvc5: [https://github.com/cvc5/cvc5](https://github.com/cvc5/cvc5) with finite field theory suport
-  - see installation instructions [here](./NOTES.md#installing-cvc5-ff)
+Run `raco pkg install` under the project directory to install Picus.
 
 ### Basic Testing Instructions
 
@@ -88,10 +83,6 @@ Exiting Picus with the code 9
 ```
 
 If you see this, it means the environment that you are operating on is configured successfully.
-
-### gnark support 
-
-Picus supports gnark as well. See https://github.com/Veridise/picus_gnark for details.
 
 ## Reusability Instructions
 
@@ -164,12 +155,13 @@ Picus will not output false positive. Potential outputs are:
 * `unsafe`: Picus can find an underconstrained bug and it usually will also output the attack vector
 * `unknown`: Picus cannot get a result within the given time limit. Manual review or an increase in time limit for the solver is necessary.
 
-### z3 vs cvc5 
-There are two solvers available that use different theories: `z3` and `cvc5`.
-Different shapes of finite field constraints may have different difficulties for solvers with different theories. `z3` currently do not have a finite field theory, so it will not work well in majority of the cases for ZK, while `cvc5` has basic finite field support so it will work better.  
+### cvc5 vs z3
 
-Regarding the results reported, supposing that there is no other bugs in the system and solver, if `z3` reports `safe`, it means `z3` can solve the constraints and get the result. When `cvc5` returns `unknown`, it means it got stuck in solving. In this case, the result would be `safe` since `z3` terminates with concrete results while `cvc5` cannot, supposing everything else is correct.
-In case of conflicting results, `safe` for one and `unsafe` for the other, the only way to know which one is correct is to manually verify the counter example outputted by the solver that reports `unsafe`.
+Picus can be used with either cvc5 or Z3 SMT solver. 
+Different shapes of finite field constraints may have different difficulties for solvers with different theories. `z3` currently does not have a finite field theory, so it will not work well in majority of the cases for ZK circuits, while `cvc5` has basic finite field support so it will work better.
+
+Regarding the results reported, supposing that there are no other bugs in the system and solver, if `z3` reports `safe`, it means `z3` can solve the constraints and get the result. When `cvc5` returns `unknown`, it means it got stuck in solving. In this case, the result would be `safe` since `z3` terminates with concrete results while `cvc5` cannot, supposing everything else is correct.
+Conflicting results (`safe` for one and `unsafe` for the other) indicate a bug in Picus, and we would appreciate a bug report. In this case, the only way to know which one is correct is to manually verify the counter example outputted by the solver that reports `unsafe`.
 
 ### Potential errors
 * In case of `Killed` error: it might be a resources problem. Try to increase the memory allocated to docker.  
